@@ -7,26 +7,24 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/util"
 	"log"
 	"short-form/conf"
-	"short-form/search"
 	"short-form/utils"
 	"strings"
 )
 
 type Repository interface {
 	WriteNote(note Note) error
-	SearchNotes(ctx search.Filters) ([]Note, error)
+	SearchNotes(ctx Filters) (map[string]*Note, error)
+	SearchNotesByDate(dateRange *DateRange) (map[string]*Note, error)
+	GetNoteTags(id string) ([]string, error)
 	Close()
 }
 
 type repository struct {
-	metaDb *leveldb.DB
-	logDb  *leveldb.DB
+	db *leveldb.DB
 }
 
-func discardTransactions(err error, ts ...*leveldb.Transaction) error {
-	for _, transaction := range ts {
-		transaction.Discard()
-	}
+func discardTransaction(err error, transaction *leveldb.Transaction) error {
+	transaction.Discard()
 
 	log.Printf("Failed to complete transaction: %s\n", err.Error())
 
@@ -37,9 +35,11 @@ const (
 	prefixLogKey     = "l:"
 	prefixContentKey = "c:"
 	prefixTagKey     = "t:"
+	prefixTagSetKey  = "ts:"
 	formatLogKey     = prefixLogKey + "%s"
 	formatContentKey = prefixContentKey + "%s"
 	formatTagKey     = prefixTagKey + "%s:%s"
+	formatTagSetKey  = prefixTagSetKey + "%s"
 )
 
 var (
@@ -59,92 +59,109 @@ func makeTagKey(tag string, id string) string {
 	return fmt.Sprintf(formatTagKey, tag, id)
 }
 
+func makeTagsSetKey(id string) string {
+	return fmt.Sprintf(formatTagSetKey, id)
+}
+
 func cleanLogKey(key string) string {
 	return strings.TrimPrefix(key, prefixLogKey)
 }
 
 func (repository repository) WriteNote(note Note) error {
 	// TODO: Encryption
-
-	metaTransaction, err := repository.metaDb.OpenTransaction()
-	if err != nil {
-		return err
-	}
-
-	logTransaction, err := repository.logDb.OpenTransaction()
+	transaction, err := repository.db.OpenTransaction()
 	if err != nil {
 		return err
 	}
 
 	logKey := makeLogKey(note.Timestamp)
-	if err := logTransaction.Put([]byte(logKey), []byte(note.ID), nil); err != nil {
-		return discardTransactions(err, metaTransaction, logTransaction)
+	if err := transaction.Put([]byte(logKey), []byte(note.ID), nil); err != nil {
+		return discardTransaction(err, transaction)
 	}
 
 	contentKey := makeContentKey(note.ID)
-	if err := metaTransaction.Put([]byte(contentKey), []byte(note.Content), nil); err != nil {
-		return discardTransactions(err, metaTransaction, logTransaction)
+	if err := transaction.Put([]byte(contentKey), []byte(note.Content), nil); err != nil {
+		return discardTransaction(err, transaction)
 	}
 
+	// Index by tag.
 	if len(note.Tags) > 0 {
 		batch := new(leveldb.Batch)
 
 		for _, tag := range note.Tags {
-			key := makeTagKey(tag, note.ID)
+			key := makeTagKey(strings.ToLower(tag), note.ID)
 			batch.Put([]byte(key), []byte("1"))
 		}
 
-		if err := metaTransaction.Write(batch, nil); err != nil {
-			return discardTransactions(err, metaTransaction, logTransaction)
+		if err := transaction.Write(batch, nil); err != nil {
+			return discardTransaction(err, transaction)
+		}
+
+		tagSetKey := makeTagsSetKey(note.ID)
+		tagsString := strings.Join(note.Tags, ",")
+		if err := transaction.Put([]byte(tagSetKey), []byte(tagsString), nil); err != nil {
+			return discardTransaction(err, transaction)
 		}
 	}
 
-	// Multiple independent transactions won't work.
-	// Can we get all the appropriate key formats working together
-	// in a single database?
-	logTransaction.Commit()
-	metaTransaction.Commit()
-	return nil
+	return transaction.Commit()
 }
 
-func (repository repository) SearchNotes(ctx search.Filters) ([]Note, error) {
+func (repository repository) SearchNotes(ctx Filters) (map[string]*Note, error) {
 	// Search by tag
 	// First, search by tag prefix
 	// Second, search by date range
 	// Lastly, search by note content
-	var notes []Note
+	var searchStrategy = MakeByDateStrategy(repository)
 
-	if ctx.DateRange != nil {
-		dateRange := util.Range{
-			Start: []byte(makeLogKey(utils.ToUnixTimestampString(ctx.DateRange.From))),
-		}
+	return searchStrategy.Execute(ctx)
+}
 
-		dateRangeIter := repository.logDb.NewIterator(&dateRange, nil)
-		for dateRangeIter.Next() {
-			timestamp := cleanLogKey(string(dateRangeIter.Key()))
-			notes = append(notes, Note{
-				ID:        string(dateRangeIter.Value()),
-				Timestamp: timestamp,
-			})
-		}
+func (repository repository) SearchNotesByDate(dRange *DateRange) (map[string]*Note, error) {
+	var notes = make(map[string]*Note)
 
-		dateRangeIter.Release()
+	dateRange := util.Range{
+		Start: []byte(makeLogKey(utils.ToUnixTimestampString(dRange.From))),
 	}
 
-	// Search by tag.
+	dateRangeIter := repository.db.NewIterator(&dateRange, nil)
+	for dateRangeIter.Next() {
+		id := string(dateRangeIter.Value())
+		timestamp := cleanLogKey(string(dateRangeIter.Key()))
+
+		notes[id] = &Note{
+			ID: id,
+			Timestamp: timestamp,
+			Tags: []string{},
+		}
+	}
+	dateRangeIter.Release()
 
 	return notes, nil
 }
 
-func (repository repository) Close() {
-	if repository.logDb != nil {
-		if err := repository.logDb.Close(); err != nil {
-			log.Printf("An error occured closing the database: %s\n", err.Error())
+func (repository repository) GetNoteTags(id string) ([]string, error) {
+	tagString, err := repository.db.Get([]byte(makeTagsSetKey(id)), nil)
+
+	if err != nil {
+		if err == leveldb.ErrNotFound { // ok
+			return nil, nil
 		}
+
+		return nil, err
 	}
 
-	if repository.metaDb != nil {
-		if err := repository.metaDb.Close(); err != nil {
+	var tags []string
+	for _, tag := range strings.Split(string(tagString), ",") {
+		tags = append(tags, strings.ToLower(tag))
+	}
+
+	return tags, nil
+}
+
+func (repository repository) Close() {
+	if repository.db != nil {
+		if err := repository.db.Close(); err != nil {
 			log.Printf("An error occured closing the database: %s\n", err.Error())
 		}
 	}
@@ -153,17 +170,11 @@ func (repository repository) Close() {
 func NewRepository() (Repository, error) {
 	repository := repository{}
 
-	logDb, err := leveldb.OpenFile(conf.ResolveLogDirectory(), nil)
-	if err != nil {
-		return nil, err
-	}
-	repository.logDb = logDb
-
 	db, err := leveldb.OpenFile(conf.ResolveDataDirectory(), nil)
 	if err != nil {
 		return nil, err
 	}
-	repository.metaDb = db
+	repository.db = db
 
 	return repository, nil
 }

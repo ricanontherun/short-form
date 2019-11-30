@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"short-form/data"
-	"short-form/search"
 	"short-form/utils"
 	"strconv"
 	"strings"
@@ -17,13 +16,17 @@ func getTagsFromContext(c *cli.Context) []string {
 	var tags []string
 
 	for _, tag := range strings.Split(c.String("tags"), ",") {
-		tags = append(tags, strings.TrimSpace(tag))
+		trimmed := strings.TrimSpace(tag)
+
+		if len(trimmed) > 0 {
+			tags = append(tags, strings.ToLower(trimmed))
+		}
 	}
 
 	return tags
 }
 
-func printNote(note data.Note) {
+func printNote(note *data.Note) {
 	num, err := strconv.ParseInt(note.Timestamp, 10, 64)
 	if err != nil {
 		return
@@ -31,7 +34,7 @@ func printNote(note data.Note) {
 	prettyDate := time.Unix(num, 0)
 	fmt.Println("ID", note.ID)
 	fmt.Println("This is the next content")
-	fmt.Println(prettyDate, "health, test")
+	fmt.Println(prettyDate, strings.Join(note.Tags, ", "))
 }
 
 func main() {
@@ -96,8 +99,8 @@ func main() {
 						Aliases: []string{"t"},
 						Action: func(c *cli.Context) error {
 							now := time.Now()
-							searchFilters := search.Filters{
-								DateRange: &search.DateRange{
+							searchFilters := data.Filters{
+								DateRange: &data.DateRange{
 									From: time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()),
 								},
 								Tags: getTagsFromContext(c),
