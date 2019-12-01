@@ -2,16 +2,18 @@ package main
 
 import (
 	"fmt"
+	"github.com/ricanontherun/short-form/data"
+	"github.com/ricanontherun/short-form/utils"
 	"github.com/urfave/cli"
 	"log"
 	"os"
-	"short-form/data"
-	"short-form/utils"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
 )
 
+// Return a cleaned array of tags provided as --tags=t1,t2,t3, as ['t1', 't2', 't3']
 func getTagsFromContext(c *cli.Context) []string {
 	var tags []string
 
@@ -26,15 +28,44 @@ func getTagsFromContext(c *cli.Context) []string {
 	return tags
 }
 
+// Print notes, sorted by timestamp.
+func printNotes(notes map[string]*data.Note) {
+	if len(notes) <= 0 {
+		return
+	}
+
+	// Sort by date
+	dates := make([]string, 0, len(notes))
+	notesByTimestamp := make(map[string]*data.Note)
+
+	for _, note := range notes {
+		notesByTimestamp[note.Timestamp] = note
+		dates = append(dates, note.Timestamp)
+	}
+	sort.Strings(dates)
+
+	// Print
+	for _, date := range dates {
+		printNote(notesByTimestamp[date])
+	}
+}
+
 func printNote(note *data.Note) {
 	num, err := strconv.ParseInt(note.Timestamp, 10, 64)
 	if err != nil {
 		return
 	}
-	prettyDate := time.Unix(num, 0)
-	fmt.Println("ID", note.ID)
-	fmt.Println("This is the next content")
-	fmt.Println(prettyDate, strings.Join(note.Tags, ", "))
+
+	topLine := time.Unix(num, 0).Format("January 02, 2006 3:04 PM")
+	//topLine += ", ID: " + note.ID
+
+	if len(note.Tags) > 0 {
+		topLine += ", tags: " + strings.Join(note.Tags, ", ")
+	}
+
+	fmt.Println(topLine)
+	fmt.Println(note.Content)
+	fmt.Println()
 }
 
 func main() {
@@ -46,30 +77,30 @@ func main() {
 
 	app := cli.App{
 		Commands: []*cli.Command{
-			{
-				Name:    "configure",
-				Aliases: []string{"c"},
-				Usage:   "configure",
-				Flags: []cli.Flag{
-					&cli.StringFlag{
-						Name:        "path",
-						Usage:       "--path",
-						Value:       "",
-						DefaultText: "uh",
-						Aliases:     []string{"p"},
-					},
-				},
-			},
+			//{
+			//	Name:    "configure",
+			//	Aliases: []string{"c"},
+			//	Usage:   "configure",
+			//	Flags: []cli.Flag{
+			//		&cli.StringFlag{
+			//			Name:        "path",
+			//			Usage:       "--path",
+			//			Value:       "",
+			//			DefaultText: "uh",
+			//			Aliases:     []string{"p"},
+			//		},
+			//	},
+			//},
 			{
 				Name:    "write",
 				Aliases: []string{"w"},
-				Usage:   "write",
+				Usage:   "Write a new note",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:        "tags",
-						Usage:       "--tags music,health",
+						Usage:       "Comma separated list of tags",
 						Value:       "",
-						DefaultText: "random",
+						DefaultText: "",
 						Aliases:     []string{"t"},
 					},
 				},
@@ -102,6 +133,7 @@ func main() {
 							searchFilters := data.Filters{
 								DateRange: &data.DateRange{
 									From: time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()),
+									To:   now,
 								},
 								Tags: getTagsFromContext(c),
 							}
@@ -109,9 +141,7 @@ func main() {
 							if notes, err := repository.SearchNotes(searchFilters); err != nil {
 								return err
 							} else {
-								for _, note := range notes {
-									printNote(note)
-								}
+								printNotes(notes)
 							}
 
 							return nil
@@ -119,6 +149,31 @@ func main() {
 					},
 
 					// Search against yesterday's notes.
+					{
+						Name:    "yesterday",
+						Aliases: []string{"y"},
+						Action: func(c *cli.Context) error {
+							yesterday := time.Now().AddDate(0, 0, -1)
+							yesterdayStart := time.Date(yesterday.Year(), yesterday.Month(), yesterday.Day(), 0, 0, 0, 0, yesterday.Location())
+							yesterdayEnding := time.Date(yesterdayStart.Year(), yesterdayStart.Month(), yesterdayStart.Day(), 23, 59, 59, 0, yesterday.Location())
+
+							searchFilters := data.Filters{
+								DateRange: &data.DateRange{
+									From: yesterdayStart,
+									To:   yesterdayEnding,
+								},
+								Tags: getTagsFromContext(c),
+							}
+
+							if notes, err := repository.SearchNotes(searchFilters); err != nil {
+								return err
+							} else {
+								printNotes(notes)
+							}
+
+							return nil
+						},
+					},
 				},
 				Flags: []cli.Flag{
 					&cli.StringFlag{
@@ -135,22 +190,6 @@ func main() {
 					},
 				},
 				Action: func(c *cli.Context) error {
-					searchContext := data.SearchContext{}
-
-					sinceString := c.String("since")
-					if len(sinceString) > 0 {
-						sinceString = strings.Replace(sinceString, "-", "", 1)
-
-						if since, err := time.ParseDuration("-" + sinceString); err != nil {
-							// Parse manually.
-							log.Fatalf("Failed to parse --since of '%s', %s", sinceString, err.Error())
-						} else {
-							searchContext.From = time.Now().Add(since)
-						}
-					}
-
-					fmt.Println(searchContext.From.String())
-					fmt.Println(getTagsFromContext(c))
 					return nil
 				},
 			},

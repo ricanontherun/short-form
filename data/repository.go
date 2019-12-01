@@ -3,11 +3,11 @@ package data
 import (
 	"errors"
 	"fmt"
+	"github.com/ricanontherun/short-form/conf"
+	"github.com/ricanontherun/short-form/utils"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/util"
 	"log"
-	"short-form/conf"
-	"short-form/utils"
 	"strings"
 )
 
@@ -16,6 +16,7 @@ type Repository interface {
 	SearchNotes(ctx Filters) (map[string]*Note, error)
 	SearchNotesByDate(dateRange *DateRange) (map[string]*Note, error)
 	GetNoteTags(id string) ([]string, error)
+	GetNoteContent(id string) (string, error)
 	Close()
 }
 
@@ -107,14 +108,61 @@ func (repository repository) WriteNote(note Note) error {
 	return transaction.Commit()
 }
 
-func (repository repository) SearchNotes(ctx Filters) (map[string]*Note, error) {
-	// Search by tag
-	// First, search by tag prefix
-	// Second, search by date range
-	// Lastly, search by note content
-	var searchStrategy = MakeByDateStrategy(repository)
+func (repository repository) SearchNotes(filters Filters) (map[string]*Note, error) {
+	var notes map[string]*Note
 
-	return searchStrategy.Execute(ctx)
+	if filters.DateRange != nil {
+		if n, err := repository.SearchNotesByDate(filters.DateRange); err != nil {
+			return nil, err
+		} else {
+			notes = n
+		}
+	}
+
+	// Add tags, filter by them.
+	filterOnTags := len(filters.Tags) > 0
+	for id := range notes {
+		if noteTags, err := repository.GetNoteTags(id); err != nil {
+			return nil, err
+		} else {
+			if filterOnTags {
+				if len(noteTags) == 0 {
+					delete(notes, id)
+					continue
+				}
+
+				match := false
+				for _, tag := range filters.Tags {
+					if utils.InArray(tag, noteTags) {
+						match = true
+						break
+					}
+				}
+
+				if !match {
+					delete(notes, id)
+					continue
+				}
+			}
+
+			for _, noteTag := range noteTags {
+				notes[id].Tags = append(notes[id].Tags, noteTag)
+			}
+		}
+	}
+
+	// Add/filter content
+	// Add content to each note.
+	// TODO: Refactor to batch GET operations.
+	for id := range notes {
+		if content, err := repository.GetNoteContent(id); err != nil {
+			return nil, err
+		} else {
+			notes[id].Content = content
+		}
+	}
+
+	return notes, nil
 }
 
 func (repository repository) SearchNotesByDate(dRange *DateRange) (map[string]*Note, error) {
@@ -122,6 +170,7 @@ func (repository repository) SearchNotesByDate(dRange *DateRange) (map[string]*N
 
 	dateRange := util.Range{
 		Start: []byte(makeLogKey(utils.ToUnixTimestampString(dRange.From))),
+		Limit: []byte(makeLogKey(utils.ToUnixTimestampString(dRange.To))),
 	}
 
 	dateRangeIter := repository.db.NewIterator(&dateRange, nil)
@@ -130,9 +179,9 @@ func (repository repository) SearchNotesByDate(dRange *DateRange) (map[string]*N
 		timestamp := cleanLogKey(string(dateRangeIter.Key()))
 
 		notes[id] = &Note{
-			ID: id,
+			ID:        id,
 			Timestamp: timestamp,
-			Tags: []string{},
+			Tags:      []string{},
 		}
 	}
 	dateRangeIter.Release()
@@ -157,6 +206,14 @@ func (repository repository) GetNoteTags(id string) ([]string, error) {
 	}
 
 	return tags, nil
+}
+
+func (repository repository) GetNoteContent(id string) (string, error) {
+	if contentBytes, err := repository.db.Get([]byte(makeContentKey(id)), nil); err != nil {
+		return "", err
+	} else {
+		return string(contentBytes), nil
+	}
 }
 
 func (repository repository) Close() {
