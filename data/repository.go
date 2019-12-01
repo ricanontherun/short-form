@@ -21,7 +21,9 @@ type Repository interface {
 }
 
 type repository struct {
-	db *leveldb.DB
+	db        *leveldb.DB
+	config    conf.ShortFormConfig
+	encryptor utils.Encryptor
 }
 
 func discardTransaction(err error, transaction *leveldb.Transaction) error {
@@ -80,9 +82,13 @@ func (repository repository) WriteNote(note Note) error {
 		return discardTransaction(err, transaction)
 	}
 
-	contentKey := makeContentKey(note.ID)
-	if err := transaction.Put([]byte(contentKey), []byte(note.Content), nil); err != nil {
+	contentKey := []byte(makeContentKey(note.ID))
+	if contentValue, err := repository.encrypt([]byte(note.Content)); err != nil {
 		return discardTransaction(err, transaction)
+	} else {
+		if err := transaction.Put(contentKey, []byte(contentValue), nil); err != nil {
+			return discardTransaction(err, transaction)
+		}
 	}
 
 	// Index by tag.
@@ -158,7 +164,12 @@ func (repository repository) SearchNotes(filters Filters) (map[string]*Note, err
 		if content, err := repository.GetNoteContent(id); err != nil {
 			return nil, err
 		} else {
-			notes[id].Content = content
+			if original, err := repository.Decrypt([]byte(content)); err != nil {
+				return nil, err
+			} else {
+				notes[id].Content = string(original)
+			}
+
 		}
 	}
 
@@ -224,14 +235,38 @@ func (repository repository) Close() {
 	}
 }
 
-func NewRepository() (Repository, error) {
-	repository := repository{}
+func (repository repository) encrypt(content []byte) ([]byte, error) {
+	if !repository.config.Secure {
+		return content, nil
+	}
+
+	return repository.encryptor.Encrypt(content)
+}
+
+func (repository repository) Decrypt(content []byte) ([]byte, error) {
+	if !repository.config.Secure {
+		return content, nil
+	}
+
+	if original, err := repository.encryptor.Decrypt(content); err != nil {
+		return content, err
+	} else {
+		return original, nil
+	}
+}
+
+func NewRepository(configFile conf.ShortFormConfig) (Repository, error) {
+	repository := repository{config: configFile}
 
 	db, err := leveldb.OpenFile(conf.ResolveDataDirectory(), nil)
 	if err != nil {
 		return nil, err
 	}
 	repository.db = db
+
+	if configFile.Secure {
+		repository.encryptor = utils.MakeEncryptor(configFile.Secret)
+	}
 
 	return repository, nil
 }

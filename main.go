@@ -1,79 +1,99 @@
 package main
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/ricanontherun/short-form/conf"
 	"github.com/ricanontherun/short-form/data"
-	"github.com/ricanontherun/short-form/utils"
+	"github.com/ricanontherun/short-form/handler"
 	"github.com/urfave/cli"
+	"io/ioutil"
 	"log"
 	"os"
-	"sort"
-	"strconv"
-	"strings"
-	"time"
 )
 
-// Return a cleaned array of tags provided as --tags=t1,t2,t3, as ['t1', 't2', 't3']
-func getTagsFromContext(c *cli.Context) []string {
-	var tags []string
+var (
+	ErrFailedToReadConfigFile         = errors.New("failed to read configuration file contents")
+	ErrFailedToParseConfigurationFile = errors.New("failed to parse configuration file contents")
+)
 
-	for _, tag := range strings.Split(c.String("tags"), ",") {
-		trimmed := strings.TrimSpace(tag)
+func getDefaultConfiguration() conf.ShortFormConfig {
+	return conf.ShortFormConfig{Secret: "", Secure: false}
+}
 
-		if len(trimmed) > 0 {
-			tags = append(tags, strings.ToLower(trimmed))
+func setSecret(config conf.ShortFormConfig, secret string) (conf.ShortFormConfig, error) {
+	config.Secret = secret
+	config.Secure = true
+
+	configFilePath := conf.ResolveConfigurationFilePath()
+	if file, err := os.Open(configFilePath); err != nil {
+		return config, err
+	} else {
+		defer file.Close()
+
+		if configBytes, err := json.Marshal(config); err != nil {
+			return config, err
+		} else {
+			if _, err := file.Write(configBytes); err != nil {
+				return config, err
+			}
 		}
 	}
 
-	return tags
+	return config, nil
 }
 
-// Print notes, sorted by timestamp.
-func printNotes(notes map[string]*data.Note) {
-	if len(notes) <= 0 {
-		return
+func getConfiguration() (*conf.ShortFormConfig, error) {
+	configFilePath := conf.ResolveConfigurationFilePath()
+
+	if _, err := os.Stat(configFilePath); os.IsNotExist(err) {
+		log.Printf("Creating default configuration at %s\n", configFilePath)
+
+		if file, err := os.Create(configFilePath); err != nil {
+
+			return nil, err
+		} else {
+			defer file.Close()
+
+			if jsonBytes, err := json.Marshal(getDefaultConfiguration()); err != nil {
+				return nil, err
+			} else {
+				file.WriteString(string(jsonBytes))
+			}
+		}
+	} else if err != nil {
+		return nil, err
 	}
 
-	// Sort by date
-	dates := make([]string, 0, len(notes))
-	notesByTimestamp := make(map[string]*data.Note)
-
-	for _, note := range notes {
-		notesByTimestamp[note.Timestamp] = note
-		dates = append(dates, note.Timestamp)
-	}
-	sort.Strings(dates)
-
-	// Print
-	for _, date := range dates {
-		printNote(notesByTimestamp[date])
-	}
-}
-
-func printNote(note *data.Note) {
-	num, err := strconv.ParseInt(note.Timestamp, 10, 64)
+	fileContents, err := ioutil.ReadFile(configFilePath)
 	if err != nil {
-		return
+		return nil, ErrFailedToReadConfigFile
 	}
 
-	topLine := time.Unix(num, 0).Format("January 02, 2006 3:04 PM")
-	//topLine += ", ID: " + note.ID
-
-	if len(note.Tags) > 0 {
-		topLine += ", tags: " + strings.Join(note.Tags, ", ")
+	var c conf.ShortFormConfig
+	if err := json.Unmarshal(fileContents, &c); err != nil {
+		return nil, ErrFailedToParseConfigurationFile
 	}
 
-	fmt.Println(topLine)
-	fmt.Println(note.Content)
-	fmt.Println()
+	return &c, nil
 }
 
 func main() {
-	repository, err := data.NewRepository()
+	config, err := getConfiguration()
+	if err != nil {
+		log.Fatalf("Failed to start app: %s\n", err.Error())
+	}
+
+	fmt.Println(config)
+
+	repository, err := data.NewRepository(*config)
 	if err != nil {
 		log.Fatalf("Failed to open database: %s", err.Error())
 	}
 	defer repository.Close()
+
+	handler := handler.Handler{Repository: repository}
 
 	app := cli.App{
 		Commands: []*cli.Command{
@@ -104,21 +124,7 @@ func main() {
 						Aliases:     []string{"t"},
 					},
 				},
-				Action: func(c *cli.Context) error {
-					note := data.Note{
-						ID:        utils.MakeUUID(),
-						Timestamp: utils.CurrentUnixTimestamp(),
-						Tags:      getTagsFromContext(c),
-						Content:   strings.Join(c.Args().Slice(), " "),
-					}
-
-					if err := repository.WriteNote(note); err == nil {
-						log.Println(note.ID)
-						return nil
-					} else {
-						return err
-					}
-				},
+				Action: handler.WriteNote,
 			},
 			{
 				Name:    "search",
@@ -128,51 +134,14 @@ func main() {
 					{
 						Name:    "today",
 						Aliases: []string{"t"},
-						Action: func(c *cli.Context) error {
-							now := time.Now()
-							searchFilters := data.Filters{
-								DateRange: &data.DateRange{
-									From: time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()),
-									To:   now,
-								},
-								Tags: getTagsFromContext(c),
-							}
-
-							if notes, err := repository.SearchNotes(searchFilters); err != nil {
-								return err
-							} else {
-								printNotes(notes)
-							}
-
-							return nil
-						},
+						Action:  handler.SearchTodayNote,
 					},
 
 					// Search against yesterday's notes.
 					{
 						Name:    "yesterday",
 						Aliases: []string{"y"},
-						Action: func(c *cli.Context) error {
-							yesterday := time.Now().AddDate(0, 0, -1)
-							yesterdayStart := time.Date(yesterday.Year(), yesterday.Month(), yesterday.Day(), 0, 0, 0, 0, yesterday.Location())
-							yesterdayEnding := time.Date(yesterdayStart.Year(), yesterdayStart.Month(), yesterdayStart.Day(), 23, 59, 59, 0, yesterday.Location())
-
-							searchFilters := data.Filters{
-								DateRange: &data.DateRange{
-									From: yesterdayStart,
-									To:   yesterdayEnding,
-								},
-								Tags: getTagsFromContext(c),
-							}
-
-							if notes, err := repository.SearchNotes(searchFilters); err != nil {
-								return err
-							} else {
-								printNotes(notes)
-							}
-
-							return nil
-						},
+						Action:  handler.SearchYesterdayNote,
 					},
 				},
 				Flags: []cli.Flag{
