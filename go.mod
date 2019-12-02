@@ -6,4 +6,5 @@ require (
 	github.com/satori/go.uuid v1.2.0
 	github.com/syndtr/goleveldb v1.0.0
 	github.com/urfave/cli v1.22.2
+	github.com/urfave/cli/v2 v2.0.0
 )

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/ricanontherun/short-form/data"
 	"github.com/ricanontherun/short-form/utils"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 	"sort"
 	"strconv"
 	"strings"
@@ -85,7 +85,7 @@ func (handler Handler) WriteNote(ctx *cli.Context) error {
 		ID:        utils.MakeUUID(),
 		Timestamp: utils.CurrentUnixTimestamp(),
 		Tags:      getTagsFromContext(ctx),
-		Content:   strings.Join(ctx.Args(), " "),
+		Content:   strings.Join(ctx.Args().Slice(), " "),
 	}
 
 	if len(note.Content) <= 0 {
@@ -105,7 +105,7 @@ func (handler Handler) WriteSecureNote(ctx *cli.Context) error {
 		ID:        utils.MakeUUID(),
 		Timestamp: utils.CurrentUnixTimestamp(),
 		Tags:      getTagsFromContext(ctx),
-		Content:   strings.Join(ctx.Args(), " "),
+		Content:   strings.Join(ctx.Args().Slice(), " "),
 	}
 
 	if len(note.Content) <= 0 {

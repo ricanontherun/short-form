@@ -6,7 +6,7 @@ import (
 	"github.com/ricanontherun/short-form/conf"
 	"github.com/ricanontherun/short-form/data"
 	"github.com/ricanontherun/short-form/handler"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 	"io/ioutil"
 	"log"
 	"os"
@@ -23,9 +23,10 @@ func getDefaultConfiguration() conf.ShortFormConfig {
 
 var (
 	FlagTags = &cli.StringFlag{
-		Name:  "tags",
-		Usage: "Comma separated list of tags",
-		Value: "",
+		Name:    "tags",
+		Aliases: []string{"t"},
+		Usage:   "Comma separated list of tags",
+		Value:   "",
 	}
 )
 
@@ -102,7 +103,7 @@ func main() {
 	app := cli.App{
 		Name:        "short-form",
 		Description: "A command line journal for bite sized thoughts",
-		Commands: []cli.Command{
+		Commands: []*cli.Command{
 			//{
 			//	Name:    "configure",
 			//	Aliases: []string{"c"},
@@ -138,7 +139,7 @@ func main() {
 			{
 				Name:    "search",
 				Aliases: []string{"s"},
-				Subcommands: []cli.Command{
+				Subcommands: []*cli.Command{
 					// Search against today's notes.
 					{
 						Name:    "today",
@@ -159,11 +160,7 @@ func main() {
 						Usage: "-s 5d",
 						Value: "",
 					},
-					&cli.StringFlag{
-						Name:  "tags",
-						Usage: "-t music",
-						Value: "",
-					},
+					FlagTags,
 				},
 				Action: func(c *cli.Context) error {
 					return nil
