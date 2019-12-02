@@ -2,6 +2,12 @@
 
 A command line journal for bite sized thoughts
 
+## Features
+
+1. Optional secure (encrypted) notes
+2. Simple, short and concise CLI
+3. Efficient and reliable data storage (backed by leveldb)
+
 ## Installation
 
 ### Binaries
