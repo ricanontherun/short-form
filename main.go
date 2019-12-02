@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/ricanontherun/short-form/conf"
 	"github.com/ricanontherun/short-form/data"
 	"github.com/ricanontherun/short-form/handler"
@@ -19,12 +18,21 @@ var (
 )
 
 func getDefaultConfiguration() conf.ShortFormConfig {
-	return conf.ShortFormConfig{Secret: "", Secure: false}
+	return conf.ShortFormConfig{Secret: ""}
 }
+
+var (
+	FlagTags = &cli.StringFlag{
+		Name:        "tags",
+		Usage:       "Comma separated list of tags",
+		Value:       "",
+		DefaultText: "",
+		Aliases:     []string{"t"},
+	}
+)
 
 func setSecret(config conf.ShortFormConfig, secret string) (conf.ShortFormConfig, error) {
 	config.Secret = secret
-	config.Secure = true
 
 	configFilePath := conf.ResolveConfigurationFilePath()
 	if file, err := os.Open(configFilePath); err != nil {
@@ -51,7 +59,6 @@ func getConfiguration() (*conf.ShortFormConfig, error) {
 		log.Printf("Creating default configuration at %s\n", configFilePath)
 
 		if file, err := os.Create(configFilePath); err != nil {
-
 			return nil, err
 		} else {
 			defer file.Close()
@@ -59,7 +66,11 @@ func getConfiguration() (*conf.ShortFormConfig, error) {
 			if jsonBytes, err := json.Marshal(getDefaultConfiguration()); err != nil {
 				return nil, err
 			} else {
-				file.WriteString(string(jsonBytes))
+				if _, err := file.WriteString(string(jsonBytes)); err != nil {
+					return nil, err
+				} else {
+					file.Sync()
+				}
 			}
 		}
 	} else if err != nil {
@@ -80,14 +91,9 @@ func getConfiguration() (*conf.ShortFormConfig, error) {
 }
 
 func main() {
-	config, err := getConfiguration()
-	if err != nil {
-		log.Fatalf("Failed to start app: %s\n", err.Error())
-	}
+	config := getDefaultConfiguration()
 
-	fmt.Println(config)
-
-	repository, err := data.NewRepository(*config)
+	repository, err := data.NewRepository(config)
 	if err != nil {
 		log.Fatalf("Failed to open database: %s", err.Error())
 	}
@@ -116,15 +122,18 @@ func main() {
 				Aliases: []string{"w"},
 				Usage:   "Write a new note",
 				Flags: []cli.Flag{
-					&cli.StringFlag{
-						Name:        "tags",
-						Usage:       "Comma separated list of tags",
-						Value:       "",
-						DefaultText: "",
-						Aliases:     []string{"t"},
-					},
+					FlagTags,
 				},
 				Action: handler.WriteNote,
+			},
+			{
+				Name:    "write-secure",
+				Aliases: []string{"ws"},
+				Usage:   "Write a new encrypted note",
+				Flags: []cli.Flag{
+					FlagTags,
+				},
+				Action: handler.WriteSecureNote,
 			},
 			{
 				Name:    "search",

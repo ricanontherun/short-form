@@ -1,6 +1,7 @@
 package data
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/ricanontherun/short-form/conf"
@@ -12,37 +13,24 @@ import (
 )
 
 type Repository interface {
-	WriteNote(note Note) error
+	WriteNote(note Note, secure bool) error
 	SearchNotes(ctx Filters) (map[string]*Note, error)
-	SearchNotesByDate(dateRange *DateRange) (map[string]*Note, error)
-	GetNoteTags(id string) ([]string, error)
-	GetNoteContent(id string) (string, error)
 	Close()
 }
 
 type repository struct {
-	db        *leveldb.DB
-	config    conf.ShortFormConfig
-	encryptor utils.Encryptor
-}
-
-func discardTransaction(err error, transaction *leveldb.Transaction) error {
-	transaction.Discard()
-
-	log.Printf("Failed to complete transaction: %s\n", err.Error())
-
-	return err
+	db     *leveldb.DB
+	config conf.ShortFormConfig
 }
 
 const (
 	prefixLogKey     = "l:"
 	prefixContentKey = "c:"
 	prefixTagKey     = "t:"
-	prefixTagSetKey  = "ts:"
-	formatLogKey     = prefixLogKey + "%s"
+	prefixMetaKey    = "m:"
 	formatContentKey = prefixContentKey + "%s"
 	formatTagKey     = prefixTagKey + "%s:%s"
-	formatTagSetKey  = prefixTagSetKey + "%s"
+	formatMetaKey    = prefixMetaKey + "%s"
 )
 
 var (
@@ -51,7 +39,6 @@ var (
 
 func makeLogKey(timestamp string) string {
 	return timestamp
-	//return fmt.Sprintf(formatLogKey, timestamp)
 }
 
 func makeContentKey(id string) string {
@@ -62,75 +49,109 @@ func makeTagKey(tag string, id string) string {
 	return fmt.Sprintf(formatTagKey, tag, id)
 }
 
-func makeTagsSetKey(id string) string {
-	return fmt.Sprintf(formatTagSetKey, id)
+func makeMetaKey(id string) string {
+	return fmt.Sprintf(formatMetaKey, id)
 }
 
 func cleanLogKey(key string) string {
 	return strings.TrimPrefix(key, prefixLogKey)
 }
 
-func (repository repository) WriteNote(note Note) error {
-	// TODO: Encryption
+// Execute a function in the context of a leveldb transaction
+func (repository repository) withTransaction(callback func(transaction *leveldb.Transaction) error) error {
 	transaction, err := repository.db.OpenTransaction()
 	if err != nil {
 		return err
 	}
 
-	logKey := makeLogKey(note.Timestamp)
-	if err := transaction.Put([]byte(logKey), []byte(note.ID), nil); err != nil {
-		return discardTransaction(err, transaction)
-	}
-
-	contentKey := []byte(makeContentKey(note.ID))
-	if contentValue, err := repository.encrypt([]byte(note.Content)); err != nil {
-		return discardTransaction(err, transaction)
-	} else {
-		if err := transaction.Put(contentKey, []byte(contentValue), nil); err != nil {
-			return discardTransaction(err, transaction)
-		}
-	}
-
-	// Index by tag.
-	if len(note.Tags) > 0 {
-		batch := new(leveldb.Batch)
-
-		for _, tag := range note.Tags {
-			key := makeTagKey(strings.ToLower(tag), note.ID)
-			batch.Put([]byte(key), []byte("1"))
-		}
-
-		if err := transaction.Write(batch, nil); err != nil {
-			return discardTransaction(err, transaction)
-		}
-
-		tagSetKey := makeTagsSetKey(note.ID)
-		tagsString := strings.Join(note.Tags, ",")
-		if err := transaction.Put([]byte(tagSetKey), []byte(tagsString), nil); err != nil {
-			return discardTransaction(err, transaction)
-		}
+	if err := callback(transaction); err != nil {
+		transaction.Discard()
+		return err
 	}
 
 	return transaction.Commit()
+}
+
+// Create a new note, possibly secured.
+func (repository repository) WriteNote(note Note, secure bool) error {
+	var preparedNote Note = note
+
+	if secure {
+		if encryptedNote, err := note.EncryptNote(repository.config.Secret); err != nil {
+			return err
+		} else {
+			preparedNote = *encryptedNote
+		}
+	}
+
+	return repository.withTransaction(func(transaction *leveldb.Transaction) error {
+		if err := repository.setKeyValue(transaction, preparedNote.Timestamp, preparedNote.ID); err != nil {
+			return err
+		}
+
+		if err := repository.setKeyValue(transaction, makeContentKey(preparedNote.ID), preparedNote.Content); err != nil {
+			return err
+		}
+
+		// Write Note metadata.
+		noteMetadata := NoteMeta{Tags: preparedNote.Tags, Secure: secure}
+		if jsonBytes, err := json.Marshal(noteMetadata); err != nil {
+			return err
+		} else {
+			if err := repository.setKeyValue(transaction, makeMetaKey(preparedNote.ID), string(jsonBytes)); err != nil {
+				return err
+			}
+		}
+
+		if len(preparedNote.Tags) > 0 {
+			if err := repository.writeNoteTags(transaction, preparedNote.ID, preparedNote.Tags); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+}
+
+// Batch insert tags for a note.
+func (repository repository) writeNoteTags(transaction *leveldb.Transaction, id string, tags []string) error {
+	batch := new(leveldb.Batch)
+
+	for _, tag := range tags {
+		batch.Put([]byte(makeTagKey(strings.ToLower(tag), id)), []byte("1"))
+	}
+
+	if err := transaction.Write(batch, nil); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (repository repository) SearchNotes(filters Filters) (map[string]*Note, error) {
 	var notes map[string]*Note
 
 	if filters.DateRange != nil {
-		if n, err := repository.SearchNotesByDate(filters.DateRange); err != nil {
+		if n, err := repository.searchNotesByDate(filters.DateRange); err != nil {
 			return nil, err
 		} else {
 			notes = n
 		}
 	}
 
-	// Add tags, filter by them.
 	filterOnTags := len(filters.Tags) > 0
+
 	for id := range notes {
-		if noteTags, err := repository.GetNoteTags(id); err != nil {
+		if noteMetadataString, err := repository.getKeyValue(makeMetaKey(id)); err != nil {
 			return nil, err
 		} else {
+			var noteMetadata NoteMeta
+			if err := json.Unmarshal([]byte(noteMetadataString), &noteMetadata); err != nil {
+				return nil, err
+			}
+			notes[id].Secure = noteMetadata.Secure
+			noteTags := noteMetadata.Tags
+
 			if filterOnTags {
 				if len(noteTags) == 0 {
 					delete(notes, id)
@@ -157,26 +178,27 @@ func (repository repository) SearchNotes(filters Filters) (map[string]*Note, err
 		}
 	}
 
-	// Add/filter content
-	// Add content to each note.
-	// TODO: Refactor to batch GET operations.
+	encryptor := utils.MakeEncryptor(repository.config.Secret)
 	for id := range notes {
-		if content, err := repository.GetNoteContent(id); err != nil {
+		if content, err := repository.getNoteContent(id); err != nil {
 			return nil, err
 		} else {
-			if original, err := repository.Decrypt([]byte(content)); err != nil {
-				return nil, err
+			if notes[id].Secure {
+				if bytes, err := encryptor.Decrypt([]byte(content)); err != nil {
+					return nil, err
+				} else {
+					notes[id].Content = string(bytes)
+				}
 			} else {
-				notes[id].Content = string(original)
+				notes[id].Content = content
 			}
-
 		}
 	}
 
 	return notes, nil
 }
 
-func (repository repository) SearchNotesByDate(dRange *DateRange) (map[string]*Note, error) {
+func (repository repository) searchNotesByDate(dRange *DateRange) (map[string]*Note, error) {
 	var notes = make(map[string]*Note)
 
 	dateRange := util.Range{
@@ -200,31 +222,24 @@ func (repository repository) SearchNotesByDate(dRange *DateRange) (map[string]*N
 	return notes, nil
 }
 
-func (repository repository) GetNoteTags(id string) ([]string, error) {
-	tagString, err := repository.db.Get([]byte(makeTagsSetKey(id)), nil)
-
-	if err != nil {
-		if err == leveldb.ErrNotFound { // ok
-			return nil, nil
-		}
-
-		return nil, err
-	}
-
-	var tags []string
-	for _, tag := range strings.Split(string(tagString), ",") {
-		tags = append(tags, strings.ToLower(tag))
-	}
-
-	return tags, nil
-}
-
-func (repository repository) GetNoteContent(id string) (string, error) {
-	if contentBytes, err := repository.db.Get([]byte(makeContentKey(id)), nil); err != nil {
+func (repository repository) getNoteContent(id string) (string, error) {
+	if contentBytes, err := repository.getKeyValue(makeContentKey(id)); err != nil {
 		return "", err
 	} else {
-		return string(contentBytes), nil
+		return contentBytes, nil
 	}
+}
+
+func (repository repository) getKeyValue(key string) (string, error) {
+	if bytes, err := repository.db.Get([]byte(key), nil); err != nil {
+		return "", err
+	} else {
+		return string(bytes), nil
+	}
+}
+
+func (repository repository) setKeyValue(transaction *leveldb.Transaction, key string, value string) error {
+	return transaction.Put([]byte(key), []byte(value), nil)
 }
 
 func (repository repository) Close() {
@@ -232,26 +247,6 @@ func (repository repository) Close() {
 		if err := repository.db.Close(); err != nil {
 			log.Printf("An error occured closing the database: %s\n", err.Error())
 		}
-	}
-}
-
-func (repository repository) encrypt(content []byte) ([]byte, error) {
-	if !repository.config.Secure {
-		return content, nil
-	}
-
-	return repository.encryptor.Encrypt(content)
-}
-
-func (repository repository) Decrypt(content []byte) ([]byte, error) {
-	if !repository.config.Secure {
-		return content, nil
-	}
-
-	if original, err := repository.encryptor.Decrypt(content); err != nil {
-		return content, err
-	} else {
-		return original, nil
 	}
 }
 
@@ -263,10 +258,6 @@ func NewRepository(configFile conf.ShortFormConfig) (Repository, error) {
 		return nil, err
 	}
 	repository.db = db
-
-	if configFile.Secure {
-		repository.encryptor = utils.MakeEncryptor(configFile.Secret)
-	}
 
 	return repository, nil
 }

@@ -45,3 +45,9 @@ func ResolveConfigurationFilePath() string {
 
 	return configFilePath
 }
+
+func ResolveHomeDirectory() string {
+	initializePaths()
+
+	return shortFormDataDirectoryPath
+}

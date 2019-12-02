@@ -52,7 +52,7 @@ func printNotes(notes map[string]*data.Note) {
 	}
 	sort.Strings(dates)
 
-	// Print
+	fmt.Println()
 	for _, date := range dates {
 		printNote(notesByTimestamp[date])
 	}
@@ -65,10 +65,15 @@ func printNote(note *data.Note) {
 	}
 
 	topLine := time.Unix(num, 0).Format("January 02, 2006 3:04 PM")
-	//topLine += ", ID: " + note.ID
+	topLine += " | " + note.ID
+	if note.Secure {
+		topLine += " | secure"
+	} else {
+		topLine += " | insecure"
+	}
 
 	if len(note.Tags) > 0 {
-		topLine += ", tags: " + strings.Join(note.Tags, ", ")
+		topLine += " | " + strings.Join(note.Tags, ", ")
 	}
 
 	fmt.Println(topLine)
@@ -88,7 +93,27 @@ func (handler Handler) WriteNote(ctx *cli.Context) error {
 		return ErrEmptyContent
 	}
 
-	if err := handler.Repository.WriteNote(note); err == nil {
+	if err := handler.Repository.WriteNote(note, false); err == nil {
+		log.Println(note.ID)
+		return nil
+	} else {
+		return err
+	}
+}
+
+func (handler Handler) WriteSecureNote(ctx *cli.Context) error {
+	note := data.Note{
+		ID:        utils.MakeUUID(),
+		Timestamp: utils.CurrentUnixTimestamp(),
+		Tags:      getTagsFromContext(ctx),
+		Content:   strings.Join(ctx.Args().Slice(), " "),
+	}
+
+	if len(note.Content) <= 0 {
+		return ErrEmptyContent
+	}
+
+	if err := handler.Repository.WriteNote(note, true); err == nil {
 		log.Println(note.ID)
 		return nil
 	} else {
