@@ -6,7 +6,6 @@ import (
 	"github.com/ricanontherun/short-form/data"
 	"github.com/ricanontherun/short-form/utils"
 	"github.com/urfave/cli"
-	"log"
 	"sort"
 	"strconv"
 	"strings"
@@ -94,7 +93,7 @@ func (handler Handler) WriteNote(ctx *cli.Context) error {
 	}
 
 	if err := handler.Repository.WriteNote(note, false); err == nil {
-		log.Println(note.ID)
+		fmt.Println(note.ID)
 		return nil
 	} else {
 		return err
@@ -114,7 +113,7 @@ func (handler Handler) WriteSecureNote(ctx *cli.Context) error {
 	}
 
 	if err := handler.Repository.WriteNote(note, true); err == nil {
-		log.Println(note.ID)
+		fmt.Println(note.ID)
 		return nil
 	} else {
 		return err
