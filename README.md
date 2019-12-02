@@ -63,6 +63,9 @@ TODO
 #### Configure encryption password
 TODO
 
+#### TESTS
+TODO :)
+
 ### Shorthand
 All commands and flags support short versions.
 
