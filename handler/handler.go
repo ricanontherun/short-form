@@ -85,7 +85,7 @@ func (handler Handler) WriteNote(ctx *cli.Context) error {
 		ID:        utils.MakeUUID(),
 		Timestamp: utils.CurrentUnixTimestamp(),
 		Tags:      getTagsFromContext(ctx),
-		Content:   strings.Join(ctx.Args().Slice(), " "),
+		Content:   strings.Join(ctx.Args(), " "),
 	}
 
 	if len(note.Content) <= 0 {
@@ -105,7 +105,7 @@ func (handler Handler) WriteSecureNote(ctx *cli.Context) error {
 		ID:        utils.MakeUUID(),
 		Timestamp: utils.CurrentUnixTimestamp(),
 		Tags:      getTagsFromContext(ctx),
-		Content:   strings.Join(ctx.Args().Slice(), " "),
+		Content:   strings.Join(ctx.Args(), " "),
 	}
 
 	if len(note.Content) <= 0 {

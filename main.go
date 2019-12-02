@@ -23,11 +23,9 @@ func getDefaultConfiguration() conf.ShortFormConfig {
 
 var (
 	FlagTags = &cli.StringFlag{
-		Name:        "tags",
-		Usage:       "Comma separated list of tags",
-		Value:       "",
-		DefaultText: "",
-		Aliases:     []string{"t"},
+		Name:  "tags",
+		Usage: "Comma separated list of tags",
+		Value: "",
 	}
 )
 
@@ -102,7 +100,7 @@ func main() {
 	handler := handler.Handler{Repository: repository}
 
 	app := cli.App{
-		Commands: []*cli.Command{
+		Commands: []cli.Command{
 			//{
 			//	Name:    "configure",
 			//	Aliases: []string{"c"},
@@ -138,7 +136,7 @@ func main() {
 			{
 				Name:    "search",
 				Aliases: []string{"s"},
-				Subcommands: []*cli.Command{
+				Subcommands: []cli.Command{
 					// Search against today's notes.
 					{
 						Name:    "today",
@@ -155,16 +153,14 @@ func main() {
 				},
 				Flags: []cli.Flag{
 					&cli.StringFlag{
-						Name:    "since",
-						Usage:   "-s 5d",
-						Value:   "",
-						Aliases: []string{"s"},
+						Name:  "since",
+						Usage: "-s 5d",
+						Value: "",
 					},
 					&cli.StringFlag{
-						Name:    "tags",
-						Usage:   "-t music",
-						Value:   "",
-						Aliases: []string{"t"},
+						Name:  "tags",
+						Usage: "-t music",
+						Value: "",
 					},
 				},
 				Action: func(c *cli.Context) error {
