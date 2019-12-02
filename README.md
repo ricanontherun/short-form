@@ -14,7 +14,7 @@ A command line journal for bite sized thoughts
 TODO
 
 ### Source
-These instructions require any recent version of Golang to be installed. For example, I'm running `go version go1.13.4 darwin/amd64` currently.
+These instructions require any recent (>= 1.13) version of Golang to be installed. For example, I'm running `go version go1.13.4 darwin/amd64` currently.
 
 1. `go get github.com/ricanontherun/short-form`
 2. `cd $GOPATH/src/github.com/ricanontherun/short-form`
