@@ -22,17 +22,17 @@ type Handler struct {
 
 // Return a cleaned array of tags provided as --tags=t1,t2,t3, as ['t1', 't2', 't3']
 func getTagsFromContext(c *cli.Context) []string {
-	var tags []string
+	tags := utils.NewSet()
 
 	for _, tag := range strings.Split(c.String("tags"), ",") {
 		trimmed := strings.TrimSpace(tag)
 
 		if len(trimmed) > 0 {
-			tags = append(tags, strings.ToLower(trimmed))
+			tags.Add(strings.ToLower(trimmed))
 		}
 	}
 
-	return tags
+	return tags.Entries()
 }
 
 // Print notes, sorted by timestamp.
