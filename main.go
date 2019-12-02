@@ -100,6 +100,8 @@ func main() {
 	handler := handler.Handler{Repository: repository}
 
 	app := cli.App{
+		Name:        "short-form",
+		Description: "A command line journal for bite sized thoughts",
 		Commands: []cli.Command{
 			//{
 			//	Name:    "configure",

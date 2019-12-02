@@ -1,6 +1,6 @@
 # short-form
 
-A CLI journal for bite sized thoughts
+A command line journal for bite sized thoughts
 
 ## Installation
 
