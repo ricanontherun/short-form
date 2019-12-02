@@ -57,7 +57,7 @@ TODO
 #### Search by note content
 TODO
 
-### Delete note by ID
+#### Delete note by ID
 TODO
 
 #### Configure encryption password
