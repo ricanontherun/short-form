@@ -52,10 +52,3 @@ TODO
 
 ### Short hands
 All commands/flags support shorthands, for those who like to type less.
-
-```
-short-form w -t tmux-snippets,cli New Session: tmux new -s myname
-short-form ws This is a secret note
-short-form s t
-short-form s y
-```
