@@ -49,6 +49,3 @@ TODO
 
 #### Search by note content
 TODO
-
-### Short hands
-All commands/flags support shorthands, for those who like to type less.
