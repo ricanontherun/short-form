@@ -13,8 +13,9 @@ type Note struct {
 }
 
 type NoteMeta struct {
-	Tags   []string `json:"tags"`
-	Secure bool     `json:"secure"`
+	Tags      []string `json:"tags"`
+	Secure    bool     `json:"secure"`
+	Timestamp string   `json:"timestamp"`
 }
 
 // Return a secure copy of this note.

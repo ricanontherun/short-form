@@ -160,3 +160,23 @@ func (handler Handler) SearchYesterdayNote(ctx *cli.Context) error {
 
 	return nil
 }
+
+func (handler Handler) SearchNotes(ctx *cli.Context) error {
+	contextTags := getTagsFromContext(ctx)
+
+	if len(contextTags) == 0 {
+		return errors.New("invalid search")
+	}
+
+	searchFilters := data.Filters{
+		Tags: contextTags,
+	}
+
+	if notes, err := handler.Repository.SearchNotes(searchFilters); err != nil {
+		return err
+	} else {
+		printNotes(notes)
+	}
+
+	return nil
+}

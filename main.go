@@ -162,9 +162,7 @@ func main() {
 					},
 					FlagTags,
 				},
-				Action: func(c *cli.Context) error {
-					return nil
-				},
+				Action: handler.SearchNotes,
 			},
 		},
 	}

@@ -24,13 +24,14 @@ type repository struct {
 }
 
 const (
-	prefixLogKey     = "l:"
-	prefixContentKey = "c:"
-	prefixTagKey     = "t:"
-	prefixMetaKey    = "m:"
-	formatContentKey = prefixContentKey + "%s"
-	formatTagKey     = prefixTagKey + "%s:%s"
-	formatMetaKey    = prefixMetaKey + "%s"
+	prefixLogKey       = "l:"
+	prefixContentKey   = "c:"
+	prefixTagKey       = "t:"
+	prefixMetaKey      = "m:"
+	formatContentKey   = prefixContentKey + "%s"
+	formatTagKey       = prefixTagKey + "%s:%s"
+	formatTagPrefixKey = prefixTagKey + "%s:"
+	formatMetaKey      = prefixMetaKey + "%s"
 )
 
 var (
@@ -94,7 +95,7 @@ func (repository repository) WriteNote(note Note, secure bool) error {
 		}
 
 		// Write Note metadata.
-		noteMetadata := NoteMeta{Tags: preparedNote.Tags, Secure: secure}
+		noteMetadata := NoteMeta{Tags: preparedNote.Tags, Secure: secure, Timestamp: preparedNote.Timestamp}
 		if jsonBytes, err := json.Marshal(noteMetadata); err != nil {
 			return err
 		} else {
@@ -137,6 +138,12 @@ func (repository repository) SearchNotes(filters Filters) (map[string]*Note, err
 		} else {
 			notes = n
 		}
+	} else { // Assume searching by tag.
+		if n, err := repository.searchNotesByTag(filters.Tags); err != nil {
+			return nil, err
+		} else {
+			notes = n
+		}
 	}
 
 	filterOnTags := len(filters.Tags) > 0
@@ -150,6 +157,8 @@ func (repository repository) SearchNotes(filters Filters) (map[string]*Note, err
 				return nil, err
 			}
 			notes[id].Secure = noteMetadata.Secure
+			notes[id].Timestamp = noteMetadata.Timestamp
+
 			noteTags := noteMetadata.Tags
 
 			if filterOnTags {
@@ -218,6 +227,26 @@ func (repository repository) searchNotesByDate(dRange *DateRange) (map[string]*N
 		}
 	}
 	dateRangeIter.Release()
+
+	return notes, nil
+}
+
+func (repository repository) searchNotesByTag(tags []string) (map[string]*Note, error) {
+	var notes = make(map[string]*Note)
+
+	for _, tag := range tags {
+		tagPrefixKey := makeTagKey(tag, "")
+		tagPrefixIter := repository.db.NewIterator(util.BytesPrefix([]byte(tagPrefixKey)), nil)
+
+		for tagPrefixIter.Next() {
+			key := string(tagPrefixIter.Key())
+
+			noteId := strings.Replace(key, tagPrefixKey, "", 1)
+			notes[noteId] = &Note{
+				ID: noteId,
+			}
+		}
+	}
 
 	return notes, nil
 }

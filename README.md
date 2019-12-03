@@ -1,6 +1,8 @@
-# short-form
+# short-form (WIP)
 
-A command line journal for bite sized thoughts
+A command line journal for bite sized thoughts.
+
+**NOTE**: This project is still a work in progress. Data storage formats might change with future revisions, use at your own risk.
 
 ## Features
 
@@ -52,7 +54,9 @@ short-form search yesterday
 ```
 
 #### Search by tag
-TODO
+```
+short-form s -t git,cli
+```
 
 #### Search by note content
 TODO
