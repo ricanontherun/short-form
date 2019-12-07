@@ -69,8 +69,8 @@ func (handler Handler) printNotes(notes []data.Note, insecure bool) {
 func (handler Handler) printNote(note data.Note, insecure bool) {
 	bits := make([]string, 0, 4)
 
-	bits = append(bits, note.Timestamp.Format("January 02, 2006 03:04 PM"))
-	bits = append(bits, fmt.Sprintf("%s", note.ID))
+	bits = append(bits, color.BlueString(note.Timestamp.Format("January 02, 2006 03:04 PM")))
+	bits = append(bits, color.MagentaString(note.ID))
 
 	if note.Secure {
 		bits = append(bits, color.GreenString("secure"))
