@@ -26,7 +26,7 @@ var (
 	FlagTags = &cli.StringFlag{
 		Name:    "tags",
 		Aliases: []string{"t"},
-		Usage:   "Comma separated list of tags",
+		Usage:   "comma,separated,list of tags to filter on.",
 		Value:   "",
 	}
 )
@@ -106,7 +106,9 @@ func main() {
 
 	app := cli.App{
 		Name:        "short-form",
-		Description: "A command line journal for bite sized thoughts",
+		Usage:       "A command-line journal for bite sized thoughts",
+		Description: "short-form is a privacy focused, command-line journal.",
+		Version:     "1.0.0",
 		Commands: []*cli.Command{
 			//{
 			//	Name:    "configure",
@@ -134,7 +136,7 @@ func main() {
 			{
 				Name:    "write-secure",
 				Aliases: []string{"ws"},
-				Usage:   "Write a new encrypted note",
+				Usage:   "Write a new secure (encrypted) note",
 				Flags: []cli.Flag{
 					FlagTags,
 				},
@@ -142,11 +144,13 @@ func main() {
 			},
 			{
 				Name:    "search",
+				Usage:   "Search for notes by tag, date",
 				Aliases: []string{"s"},
 				Subcommands: []*cli.Command{
 					// Search against today's notes.
 					{
 						Name:    "today",
+						Usage:   "Search for notes written today",
 						Aliases: []string{"t"},
 						Action:  handler.SearchTodayNote,
 					},
@@ -154,6 +158,7 @@ func main() {
 					// Search against yesterday's notes.
 					{
 						Name:    "yesterday",
+						Usage:   "Search for notes written yesterday",
 						Aliases: []string{"y"},
 						Action:  handler.SearchYesterdayNote,
 					},
@@ -161,13 +166,9 @@ func main() {
 				Flags: []cli.Flag{
 					&cli.BoolFlag{
 						Name:    "insecure",
+						Usage:   "Search in insecure mode, encrypted notes will be decrypted when displayed",
 						Aliases: []string{"i"},
 						Value:   false,
-					},
-					&cli.StringFlag{
-						Name:  "since",
-						Usage: "-s 5d",
-						Value: "",
 					},
 					FlagTags,
 				},

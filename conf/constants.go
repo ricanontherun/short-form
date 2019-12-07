@@ -31,7 +31,7 @@ func initializePaths() {
 		homeDirectory := u.HomeDir
 		shortFormDirectoryPath = path.Join(homeDirectory, shortFormDirectory)
 		shortFormDataDirectoryPath = path.Join(shortFormDirectoryPath, dataDirectory)
-		shortFormDatabasePath = path.Join(shortFormDirectoryPath, dataFile)
+		shortFormDatabasePath = path.Join(shortFormDataDirectoryPath, dataFile)
 		configFilePath = path.Join(shortFormDirectoryPath, configurationFile)
 	})
 }
