@@ -10,12 +10,13 @@ import (
 const (
 	shortFormDirectory = ".sf"
 	dataDirectory      = "data"
-	configurationFile  = "c"
-	logDirectory       = "log"
+	dataFile           = "data.db"
+	configurationFile  = "config"
 )
 
 var shortFormDirectoryPath string
 var shortFormDataDirectoryPath string
+var shortFormDatabasePath string
 var configFilePath string
 
 var once sync.Once
@@ -30,14 +31,9 @@ func initializePaths() {
 		homeDirectory := u.HomeDir
 		shortFormDirectoryPath = path.Join(homeDirectory, shortFormDirectory)
 		shortFormDataDirectoryPath = path.Join(shortFormDirectoryPath, dataDirectory)
+		shortFormDatabasePath = path.Join(shortFormDirectoryPath, dataFile)
 		configFilePath = path.Join(shortFormDirectoryPath, configurationFile)
 	})
-}
-
-func ResolveDataDirectory() string {
-	initializePaths()
-
-	return shortFormDataDirectoryPath
 }
 
 func ResolveConfigurationFilePath() string {
@@ -46,8 +42,8 @@ func ResolveConfigurationFilePath() string {
 	return configFilePath
 }
 
-func ResolveHomeDirectory() string {
+func ResolveDatabaseFilePath() string {
 	initializePaths()
 
-	return shortFormDataDirectoryPath
+	return shortFormDatabasePath
 }

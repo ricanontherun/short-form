@@ -6,6 +6,7 @@ import (
 	"github.com/ricanontherun/short-form/conf"
 	"github.com/ricanontherun/short-form/data"
 	"github.com/ricanontherun/short-form/handler"
+	"github.com/ricanontherun/short-form/utils"
 	"github.com/urfave/cli/v2"
 	"io/ioutil"
 	"log"
@@ -52,57 +53,67 @@ func setSecret(config conf.ShortFormConfig, secret string) (conf.ShortFormConfig
 }
 
 func getConfiguration() (*conf.ShortFormConfig, error) {
+	// Make sure all known files are created.
 	configFilePath := conf.ResolveConfigurationFilePath()
-
-	if _, err := os.Stat(configFilePath); os.IsNotExist(err) {
-		log.Printf("Creating default configuration at %s\n", configFilePath)
-
-		if file, err := os.Create(configFilePath); err != nil {
-			return nil, err
-		} else {
-			defer file.Close()
-
-			if jsonBytes, err := json.Marshal(getDefaultConfiguration()); err != nil {
-				return nil, err
-			} else {
-				if _, err := file.WriteString(string(jsonBytes)); err != nil {
-					return nil, err
-				} else {
-					file.Sync()
-				}
-			}
-		}
-	} else if err != nil {
+	if err := utils.EnsureFilePaths(
+		configFilePath, conf.ResolveDatabaseFilePath()); err != nil {
 		return nil, err
 	}
 
 	fileContents, err := ioutil.ReadFile(configFilePath)
 	if err != nil {
-		return nil, ErrFailedToReadConfigFile
+		return nil, err
 	}
 
-	var c conf.ShortFormConfig
-	if err := json.Unmarshal(fileContents, &c); err != nil {
-		return nil, ErrFailedToParseConfigurationFile
-	}
+	if len(fileContents) == 0 { // Create default configuration
+		defaultConfig := getDefaultConfiguration()
+		jsonBytes, err := json.Marshal(defaultConfig)
 
-	return &c, nil
+		if err != nil {
+			return nil, err
+		}
+
+		if err := ioutil.WriteFile(configFilePath, jsonBytes, os.ModePerm); err != nil {
+			return nil, errors.New("failed to write default configuration file to disk: " + err.Error())
+		}
+
+		return &defaultConfig, nil
+	} else { // Attempt to parse existing config file.
+		var c conf.ShortFormConfig
+		if err := json.Unmarshal(fileContents, &c); err != nil {
+			return nil, ErrFailedToParseConfigurationFile
+		}
+
+		return &c, nil
+	}
 }
 
 func main() {
-	config := getDefaultConfiguration()
+	config, err := getConfiguration()
+	if err != nil {
+		log.Fatalln(err)
+	}
 
-	repository, err := data.NewRepository(config)
+	encryptor := utils.MakeEncryptor(config.Secret)
+
+	repository, err := data.NewSqlRepository(encryptor)
 	if err != nil {
 		log.Fatalf("Failed to open database: %s", err.Error())
 	}
 	defer repository.Close()
 
-	handler := handler.Handler{Repository: repository}
+	handler := handler.NewHandler(repository, encryptor)
 
 	app := cli.App{
 		Name:        "short-form",
 		Description: "A command line journal for bite sized thoughts",
+		Flags: []cli.Flag{
+			&cli.BoolFlag{
+				Name:    "insecure",
+				Aliases: []string{"i"},
+				Value:   false,
+			},
+		},
 		Commands: []*cli.Command{
 			//{
 			//	Name:    "configure",
@@ -125,7 +136,7 @@ func main() {
 				Flags: []cli.Flag{
 					FlagTags,
 				},
-				Action: handler.WriteNote,
+				Action: handler.WriteInsecureNote,
 			},
 			{
 				Name:    "write-secure",

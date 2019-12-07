@@ -3,11 +3,11 @@ package handler
 import (
 	"errors"
 	"fmt"
+	"github.com/fatih/color"
 	"github.com/ricanontherun/short-form/data"
 	"github.com/ricanontherun/short-form/utils"
 	"github.com/urfave/cli/v2"
-	"sort"
-	"strconv"
+	"log"
 	"strings"
 	"time"
 )
@@ -18,6 +18,23 @@ var (
 
 type Handler struct {
 	Repository data.Repository
+	encryptor  utils.Encryptor
+}
+
+func NewHandler(repository data.Repository, encryptor utils.Encryptor) Handler {
+	return Handler{repository, encryptor}
+}
+
+type parsedInput struct {
+	content string
+	tags    []string
+}
+
+func getInputFromContext(ctx *cli.Context) parsedInput {
+	return parsedInput{
+		content: strings.Join(ctx.Args().Slice(), " "),
+		tags:    getTagsFromContext(ctx),
+	}
 }
 
 // Return a cleaned array of tags provided as --tags=t1,t2,t3, as ['t1', 't2', 't3']
@@ -35,89 +52,89 @@ func getTagsFromContext(c *cli.Context) []string {
 	return tags.Entries()
 }
 
-// Print notes, sorted by timestamp.
-func printNotes(notes map[string]*data.Note) {
+func (handler Handler) printNotes(notes []data.Note, insecure bool) {
+	fmt.Println(fmt.Sprintf("%d note(s) found", len(notes)))
+
 	if len(notes) <= 0 {
 		return
 	}
 
-	// Sort by date
-	dates := make([]string, 0, len(notes))
-	notesByTimestamp := make(map[string]*data.Note)
+	fmt.Println()
 
 	for _, note := range notes {
-		notesByTimestamp[note.Timestamp] = note
-		dates = append(dates, note.Timestamp)
-	}
-	sort.Strings(dates)
-
-	fmt.Println()
-	for _, date := range dates {
-		printNote(notesByTimestamp[date])
+		handler.printNote(note, insecure)
 	}
 }
 
-func printNote(note *data.Note) {
-	num, err := strconv.ParseInt(note.Timestamp, 10, 64)
-	if err != nil {
-		return
-	}
+func (handler Handler) printNote(note data.Note, insecure bool) {
+	bits := make([]string, 0, 4)
 
-	topLine := time.Unix(num, 0).Format("January 02, 2006 3:04 PM")
-	topLine += " | " + note.ID
+	bits = append(bits, note.Timestamp.Format("January 02, 2006 03:04 PM"))
+	bits = append(bits, fmt.Sprintf("%s", note.ID))
+
 	if note.Secure {
-		topLine += " | secure"
+		bits = append(bits, color.GreenString("secure"))
 	} else {
-		topLine += " | insecure"
+		bits = append(bits, color.RedString("insecure"))
 	}
 
 	if len(note.Tags) > 0 {
-		topLine += " | " + strings.Join(note.Tags, ", ")
+		bits = append(bits, strings.Join(note.Tags, ", "))
 	}
 
-	fmt.Println(topLine)
-	fmt.Println(note.Content)
+	fmt.Println(strings.Join(bits, " | "))
+
+	if note.Secure {
+		if insecure {
+			if insecureContent, err := handler.encryptor.Decrypt([]byte(note.Content)); err != nil {
+				log.Fatalln(err)
+			} else {
+				fmt.Println(string(insecureContent))
+			}
+		} else {
+			fmt.Println("*****************")
+		}
+	} else {
+		fmt.Println(note.Content)
+	}
+
 	fmt.Println()
 }
 
-func (handler Handler) WriteNote(ctx *cli.Context) error {
-	note := data.Note{
-		ID:        utils.MakeUUID(),
-		Timestamp: utils.CurrentUnixTimestamp(),
-		Tags:      getTagsFromContext(ctx),
-		Content:   strings.Join(ctx.Args().Slice(), " "),
-	}
+func (handler Handler) WriteInsecureNote(ctx *cli.Context) error {
+	input := getInputFromContext(ctx)
 
-	if len(note.Content) <= 0 {
-		return ErrEmptyContent
-	}
+	note := data.NewInsecureNote(input.tags, input.content)
 
-	if err := handler.Repository.WriteNote(note, false); err == nil {
-		fmt.Println(note.ID)
-		return nil
-	} else {
+	if err := handler.writeNote(note); err != nil {
 		return err
 	}
+
+	fmt.Println(note.ID)
+
+	return nil
 }
 
 func (handler Handler) WriteSecureNote(ctx *cli.Context) error {
-	note := data.Note{
-		ID:        utils.MakeUUID(),
-		Timestamp: utils.CurrentUnixTimestamp(),
-		Tags:      getTagsFromContext(ctx),
-		Content:   strings.Join(ctx.Args().Slice(), " "),
+	input := getInputFromContext(ctx)
+
+	note := data.NewSecureNote(input.tags, input.content)
+
+	if err := handler.writeNote(note); err != nil {
+		return err
 	}
 
+	fmt.Println(note.ID)
+
+	return nil
+}
+
+func (handler Handler) writeNote(note data.Note) error {
 	if len(note.Content) <= 0 {
 		return ErrEmptyContent
 	}
 
-	if err := handler.Repository.WriteNote(note, true); err == nil {
-		fmt.Println(note.ID)
-		return nil
-	} else {
-		return err
-	}
+	return handler.Repository.WriteNote(note)
 }
 
 func (handler Handler) SearchTodayNote(ctx *cli.Context) error {
@@ -133,7 +150,7 @@ func (handler Handler) SearchTodayNote(ctx *cli.Context) error {
 	if notes, err := handler.Repository.SearchNotes(searchFilters); err != nil {
 		return err
 	} else {
-		printNotes(notes)
+		handler.printNotes(notes, ctx.Bool("insecure"))
 	}
 
 	return nil
@@ -155,7 +172,7 @@ func (handler Handler) SearchYesterdayNote(ctx *cli.Context) error {
 	if notes, err := handler.Repository.SearchNotes(searchFilters); err != nil {
 		return err
 	} else {
-		printNotes(notes)
+		handler.printNotes(notes, ctx.Bool("insecure"))
 	}
 
 	return nil
@@ -175,7 +192,7 @@ func (handler Handler) SearchNotes(ctx *cli.Context) error {
 	if notes, err := handler.Repository.SearchNotes(searchFilters); err != nil {
 		return err
 	} else {
-		printNotes(notes)
+		handler.printNotes(notes, ctx.Bool("insecure"))
 	}
 
 	return nil
