@@ -107,13 +107,6 @@ func main() {
 	app := cli.App{
 		Name:        "short-form",
 		Description: "A command line journal for bite sized thoughts",
-		Flags: []cli.Flag{
-			&cli.BoolFlag{
-				Name:    "insecure",
-				Aliases: []string{"i"},
-				Value:   false,
-			},
-		},
 		Commands: []*cli.Command{
 			//{
 			//	Name:    "configure",
@@ -166,6 +159,11 @@ func main() {
 					},
 				},
 				Flags: []cli.Flag{
+					&cli.BoolFlag{
+						Name:    "insecure",
+						Aliases: []string{"i"},
+						Value:   false,
+					},
 					&cli.StringFlag{
 						Name:  "since",
 						Usage: "-s 5d",

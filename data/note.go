@@ -6,12 +6,11 @@ import (
 )
 
 type Note struct {
-	ID              string
-	Tags            []string
-	Content         string
-	Timestamp       time.Time
-	Secure          bool
-	secured         bool
+	ID        string
+	Tags      []string
+	Content   string
+	Timestamp time.Time
+	Secure    bool
 }
 
 func NewSecureNote(tags []string, content string) Note {
@@ -29,7 +28,6 @@ func newNote(tags []string, content string, secure bool) Note {
 		Tags:      tags,
 		Content:   content,
 		Secure:    secure,
-		secured:   false,
 	}
 }
 
@@ -40,6 +38,5 @@ func (note Note) Clone() Note {
 		Content:   note.Content,
 		Timestamp: note.Timestamp,
 		Secure:    note.Secure,
-		secured:   note.secured,
 	}
 }

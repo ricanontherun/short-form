@@ -137,7 +137,6 @@ func (repository sqlRepository) prepareNote(note Note) (Note, error) {
 		if secureContentBytes, err := repository.encryptor.Encrypt([]byte(note.Content)); err != nil {
 			return Note{}, err
 		} else {
-			clone.secured = true
 			clone.Content = string(secureContentBytes)
 		}
 
