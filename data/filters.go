@@ -11,4 +11,6 @@ type Filters struct {
 	DateRange *DateRange
 
 	Tags []string
+
+	Content string
 }

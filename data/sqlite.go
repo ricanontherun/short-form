@@ -3,6 +3,7 @@ package data
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/ricanontherun/short-form/conf"
 	"github.com/ricanontherun/short-form/utils"
@@ -30,6 +31,48 @@ func NewSqlRepository(encryptor utils.Encryptor) (Repository, error) {
 	}
 
 	return repository, nil
+}
+
+func buildSearchQueryFromContext(ctx Filters) string {
+	var where []string
+
+	if ctx.DateRange != nil {
+		filter := fmt.Sprintf(
+			" timestamp BETWEEN datetime('%s') and datetime('%s') ",
+			ctx.DateRange.From.Format("2006-01-02 15:04:05"),
+			ctx.DateRange.To.Format("2006-01-02 15:04:05"),
+		)
+
+		where = append(where, filter)
+	}
+
+	if len(ctx.Tags) > 0 {
+		quotedTags := make([]string, 0, len(ctx.Tags))
+		for _, tag := range ctx.Tags {
+			quotedTags = append(quotedTags, "'"+tag+"'")
+		}
+
+		filter := fmt.Sprintf(" note_tags.tag in (%s)", strings.Join(quotedTags, ","))
+
+		where = append(where, filter)
+	}
+
+	whereClauseString := ""
+	if len(where) > 0 {
+		whereClauseString = "WHERE " + strings.Join(where, "AND")
+	}
+
+	return fmt.Sprintf(SQLSearchForNotes, whereClauseString)
+}
+
+func makeInsertValuesForTags(noteId string, tags []string) string {
+	inserts := make([]string, 0, len(tags))
+
+	for _, tag := range tags {
+		inserts = append(inserts, fmt.Sprintf("('%s', '%s')", noteId, tag))
+	}
+
+	return strings.Join(inserts, ",")
 }
 
 func (repository sqlRepository) WriteNote(note Note) error {
@@ -120,8 +163,6 @@ func (repository sqlRepository) SearchNotes(ctx Filters) ([]Note, error) {
 			return nil, err
 		}
 
-		// Get full set of note tags.
-		// TODO: Figure out WHY the HAVING filter on tags doesn't work.
 		if len(tagString) > 0 {
 			if stmt, err := repository.conn.Prepare(SQLGetNoteTags); err != nil {
 				return nil, err
@@ -133,6 +174,23 @@ func (repository sqlRepository) SearchNotes(ctx Filters) ([]Note, error) {
 				} else {
 					note.Tags = strings.Split(tagString, ",")
 				}
+			}
+		}
+
+		// Filter by content.
+		if len(ctx.Content) > 0 {
+			content := note.Content
+
+			if note.Secure {
+				if insecureBytes, err := repository.encryptor.Decrypt([]byte(content)); err != nil {
+					return nil, err
+				} else {
+					content = string(insecureBytes)
+				}
+			}
+
+			if !strings.Contains(content, ctx.Content) {
+				continue
 			}
 		}
 

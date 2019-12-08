@@ -27,7 +27,7 @@ func getDefaultConfiguration() conf.ShortFormConfig {
 }
 
 var (
-	FlagTags = &cli.StringFlag{
+	tagFlag = &cli.StringFlag{
 		Name:    "tags",
 		Aliases: []string{"t"},
 		Usage:   "comma,separated,list of tags to filter on.",
@@ -139,7 +139,7 @@ func main() {
 				Aliases: []string{"w"},
 				Usage:   "Write a new note",
 				Flags: []cli.Flag{
-					FlagTags,
+					tagFlag,
 				},
 				Action: handler.WriteInsecureNote,
 			},
@@ -148,7 +148,7 @@ func main() {
 				Aliases: []string{"ws"},
 				Usage:   "Write a new secure (encrypted) note",
 				Flags: []cli.Flag{
-					FlagTags,
+					tagFlag,
 				},
 				Action: handler.WriteSecureNote,
 			},
@@ -186,7 +186,19 @@ func main() {
 						Aliases: []string{"i"},
 						Value:   false,
 					},
-					FlagTags,
+					tagFlag,
+					&cli.StringFlag{
+						Name:    "content",
+						Usage:   "Search by note content",
+						Aliases: []string{"c"},
+						Value:   "",
+					},
+					&cli.StringFlag{
+						Name:    "age",
+						Usage:   "Search by age of note, e.g 2d for 2 days old",
+						Aliases: []string{"a"},
+						Value:   "",
+					},
 				},
 				Action: handler.SearchNotes,
 			},

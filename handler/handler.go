@@ -9,6 +9,8 @@ import (
 	uuid "github.com/satori/go.uuid"
 	"github.com/urfave/cli/v2"
 	"log"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -53,6 +55,13 @@ func getTagsFromContext(c *cli.Context) []string {
 	}
 
 	return tags.Entries()
+}
+
+func getSearchFiltersFromContext(c *cli.Context) data.Filters {
+	return data.Filters{
+		Tags:    getTagsFromContext(c),
+		Content: strings.ToLower(c.String("content")),
+	}
 }
 
 func (handler Handler) printNotes(notes []data.Note, insecure bool) {
@@ -142,12 +151,11 @@ func (handler Handler) writeNote(note data.Note) error {
 
 func (handler Handler) SearchTodayNote(ctx *cli.Context) error {
 	now := time.Now()
-	searchFilters := data.Filters{
-		DateRange: &data.DateRange{
-			From: time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()),
-			To:   now,
-		},
-		Tags: getTagsFromContext(ctx),
+
+	searchFilters := getSearchFiltersFromContext(ctx)
+	searchFilters.DateRange = &data.DateRange{
+		From: time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()),
+		To:   now,
 	}
 
 	if notes, err := handler.Repository.SearchNotes(searchFilters); err != nil {
@@ -164,12 +172,10 @@ func (handler Handler) SearchYesterdayNote(ctx *cli.Context) error {
 	yesterdayStart := time.Date(yesterday.Year(), yesterday.Month(), yesterday.Day(), 0, 0, 0, 0, yesterday.Location())
 	yesterdayEnding := time.Date(yesterdayStart.Year(), yesterdayStart.Month(), yesterdayStart.Day(), 23, 59, 59, 0, yesterday.Location())
 
-	searchFilters := data.Filters{
-		DateRange: &data.DateRange{
-			From: yesterdayStart,
-			To:   yesterdayEnding,
-		},
-		Tags: getTagsFromContext(ctx),
+	searchFilters := getSearchFiltersFromContext(ctx)
+	searchFilters.DateRange = &data.DateRange{
+		From: yesterdayStart,
+		To:   yesterdayEnding,
 	}
 
 	if notes, err := handler.Repository.SearchNotes(searchFilters); err != nil {
@@ -182,14 +188,24 @@ func (handler Handler) SearchYesterdayNote(ctx *cli.Context) error {
 }
 
 func (handler Handler) SearchNotes(ctx *cli.Context) error {
-	contextTags := getTagsFromContext(ctx)
+	searchFilters := getSearchFiltersFromContext(ctx)
 
-	if len(contextTags) == 0 {
-		return errors.New("invalid search")
-	}
+	// Check for age.
+	age := strings.ToLower(ctx.String("age"))
+	if len(age) > 0 {
+		validAge := regexp.MustCompile(`^\d+d$`)
+		if !validAge.MatchString(age) {
+			return errors.New("invalid age: " + age)
+		} else {
+			ageDays, _ := strconv.Atoi(strings.TrimRight(age, "d"))
+			end := time.Now()
+			start := end.AddDate(0, 0, -ageDays)
 
-	searchFilters := data.Filters{
-		Tags: contextTags,
+			searchFilters.DateRange = &data.DateRange{
+				From: start,
+				To:   end,
+			}
+		}
 	}
 
 	if notes, err := handler.Repository.SearchNotes(searchFilters); err != nil {
