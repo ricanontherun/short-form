@@ -11,6 +11,10 @@ import (
 	"strings"
 )
 
+var (
+	ErrNoteNotFound = errors.New("not not found")
+)
+
 type sqlRepository struct {
 	conn      *sql.DB
 	encryptor utils.Encryptor
@@ -207,8 +211,17 @@ func (repository sqlRepository) DeleteNote(noteId string) error {
 			return err
 		}
 
-		if _, err = stmt.Exec(noteId); err != nil {
+		if rs, err := stmt.Exec(noteId); err != nil {
 			return err
+		} else {
+			numDeleted, err := rs.RowsAffected()
+			if err != nil {
+				return err
+			}
+
+			if numDeleted <= 0 {
+				return ErrNoteNotFound
+			}
 		}
 
 		stmt, err = repository.conn.Prepare(SQLDeleteNoteTags)

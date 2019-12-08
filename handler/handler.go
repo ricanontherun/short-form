@@ -65,7 +65,16 @@ func getSearchFiltersFromContext(c *cli.Context) data.Filters {
 }
 
 func (handler Handler) printNotes(notes []data.Note, insecure bool) {
-	fmt.Println(fmt.Sprintf("%d note(s) found", len(notes)))
+	noteCount := len(notes)
+	noteCountString := ""
+
+	if noteCount == 1 {
+		noteCountString = fmt.Sprintf("1 note found")
+	} else {
+		noteCountString = fmt.Sprintf("%d notes found", noteCount)
+	}
+
+	fmt.Println(noteCountString)
 
 	if len(notes) <= 0 {
 		return
@@ -232,5 +241,14 @@ func (handler Handler) DeleteNote(ctx *cli.Context) error {
 		return ErrMalformedNoteId
 	}
 
-	return handler.Repository.DeleteNote(noteId)
+	result := handler.Repository.DeleteNote(noteId)
+	if result == nil {
+		fmt.Println("ok")
+	} else if result == data.ErrNoteNotFound {
+		fmt.Println("not found")
+	} else {
+		return result
+	}
+
+	return nil
 }
