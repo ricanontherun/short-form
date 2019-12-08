@@ -23,10 +23,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS notes_id_uindex ON notes (id);
 CREATE INDEX IF NOT EXISTS notes_timestamp_index ON notes (TIMESTAMP);
 
 CREATE TABLE IF NOT EXISTS note_tags (note_id CHAR(16) NOT NULL,
-                                      tag VARCHAR(50) NOT NULL,
-                                      active tinyint DEFAULT 1 NOT NULL);
-
-CREATE INDEX IF NOT EXISTS note_tags_active_index ON note_tags (active);
+                                      tag VARCHAR(50) NOT NULL);
 
 CREATE INDEX IF NOT EXISTS note_tags_note_id_index ON note_tags (note_id);
 
@@ -48,24 +45,35 @@ LEFT JOIN note_tags
 -- WHERE clause
 %s
 
+-- TODO: The fact that this having doesn't work as expected seems like a bug.
+-- HAVING tag_notes.tag IN (?)
 GROUP BY notes.id
-
--- Optional HAVING clause
-%s
-
 ORDER BY notes.timestamp
 `
 
+const SQLDeleteNote = "DELETE FROM notes WHERE notes.id = ?"
+const SQLDeleteNoteTags = "DELETE FROM note_tags WHERE note_tags.note_id = ?"
+const SQLGetNote = `
+SELECT notes.id, notes.content, COALESCE(GROUP_CONCAT(distinct note_tags.tag), "") as tags, notes.timestamp, notes.secure
+FROM notes
+LEFT JOIN note_tags
+    ON note_tags.note_id = notes.id
+WHERE notes.id = ?
+`
+
+const SQLGetNoteTags = `SELECT GROUP_CONCAT(tag) as tags FROM note_tags WHERE note_id = ?`
+
 func buildSearchQueryFromContext(ctx Filters) string {
-	var where string
-	var having string
+	var where []string
 
 	if ctx.DateRange != nil {
-		where = fmt.Sprintf(
-			"WHERE timestamp BETWEEN datetime('%s') and datetime('%s')",
+		filter := fmt.Sprintf(
+			" timestamp BETWEEN datetime('%s') and datetime('%s') ",
 			ctx.DateRange.From.Format("2006-01-02 15:04:05"),
 			ctx.DateRange.To.Format("2006-01-02 15:04:05"),
 		)
+
+		where = append(where, filter)
 	}
 
 	if len(ctx.Tags) > 0 {
@@ -74,10 +82,12 @@ func buildSearchQueryFromContext(ctx Filters) string {
 			quotedTags = append(quotedTags, "'"+tag+"'")
 		}
 
-		having = fmt.Sprintf("HAVING note_tags.tag in (%s)", strings.Join(quotedTags, ","))
+		filter := fmt.Sprintf(" note_tags.tag in (%s)", strings.Join(quotedTags, ","))
+		where = append(where, filter)
 	}
 
-	return fmt.Sprintf(SQLSearchForNotes, where, having)
+	whereClauseString := "WHERE " + strings.Join(where, "AND")
+	return fmt.Sprintf(SQLSearchForNotes, whereClauseString)
 }
 
 func makeInsertValuesForTags(noteId string, tags []string) string {

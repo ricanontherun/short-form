@@ -6,6 +6,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/ricanontherun/short-form/data"
 	"github.com/ricanontherun/short-form/utils"
+	uuid "github.com/satori/go.uuid"
 	"github.com/urfave/cli/v2"
 	"log"
 	"strings"
@@ -13,7 +14,9 @@ import (
 )
 
 var (
-	ErrEmptyContent = errors.New("empty content")
+	ErrEmptyContent    = errors.New("empty content")
+	ErrMissingNoteId   = errors.New("missing note id")
+	ErrMalformedNoteId = errors.New("malformed note id")
 )
 
 type Handler struct {
@@ -196,4 +199,22 @@ func (handler Handler) SearchNotes(ctx *cli.Context) error {
 	}
 
 	return nil
+}
+
+func (handler Handler) DeleteNote(ctx *cli.Context) error {
+	if len(ctx.Args().Slice()) <= 0 {
+		return errors.New("no note id provided")
+	}
+
+	noteId := strings.TrimSpace(ctx.Args().First())
+	if len(noteId) <= 0 {
+		return ErrMissingNoteId
+	}
+
+	// Validate it's a V4 UUID
+	if _, err := uuid.FromString(noteId); err != nil {
+		return ErrMalformedNoteId
+	}
+
+	return handler.Repository.DeleteNote(noteId)
 }

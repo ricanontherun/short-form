@@ -1,12 +1,14 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"github.com/ricanontherun/short-form/conf"
 	"github.com/ricanontherun/short-form/data"
 	"github.com/ricanontherun/short-form/handler"
 	"github.com/ricanontherun/short-form/utils"
+	uuid "github.com/satori/go.uuid"
 	"github.com/urfave/cli/v2"
 	"io/ioutil"
 	"log"
@@ -14,12 +16,14 @@ import (
 )
 
 var (
-	ErrFailedToReadConfigFile         = errors.New("failed to read configuration file contents")
 	ErrFailedToParseConfigurationFile = errors.New("failed to parse configuration file contents")
 )
 
 func getDefaultConfiguration() conf.ShortFormConfig {
-	return conf.ShortFormConfig{Secret: ""}
+	defaultSecret := uuid.NewV4().String()
+	defaultSecretEncoded := base64.StdEncoding.EncodeToString([]byte(defaultSecret))
+
+	return conf.ShortFormConfig{SecretEncoded: defaultSecretEncoded, Secret: defaultSecret}
 }
 
 var (
@@ -84,6 +88,12 @@ func getConfiguration() (*conf.ShortFormConfig, error) {
 			return nil, ErrFailedToParseConfigurationFile
 		}
 
+		if secretBytes, err := base64.StdEncoding.DecodeString(c.SecretEncoded); err != nil {
+			return nil, err
+		} else {
+			c.Secret = string(secretBytes)
+		}
+
 		return &c, nil
 	}
 }
@@ -141,6 +151,12 @@ func main() {
 					FlagTags,
 				},
 				Action: handler.WriteSecureNote,
+			},
+			{
+				Name:    "delete",
+				Aliases: []string{"d"},
+				Usage:   "Delete a note",
+				Action:  handler.DeleteNote,
 			},
 			{
 				Name:    "search",

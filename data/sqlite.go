@@ -120,14 +120,54 @@ func (repository sqlRepository) SearchNotes(ctx Filters) ([]Note, error) {
 			return nil, err
 		}
 
+		// Get full set of note tags.
+		// TODO: Figure out WHY the HAVING filter on tags doesn't work.
 		if len(tagString) > 0 {
-			note.Tags = strings.Split(tagString, ",")
+			if stmt, err := repository.conn.Prepare(SQLGetNoteTags); err != nil {
+				return nil, err
+			} else {
+				var tagString string
+
+				if err := stmt.QueryRow(note.ID).Scan(&tagString); err != nil {
+					return nil, err
+				} else {
+					note.Tags = strings.Split(tagString, ",")
+				}
+			}
 		}
 
 		notes = append(notes, note)
 	}
 
 	return notes, nil
+}
+
+func (repository sqlRepository) DeleteNote(noteId string) error {
+	return repository.executeWithinTransaction(func(tx *sql.Tx) error {
+		stmt, err := repository.conn.Prepare(SQLDeleteNote)
+		if err != nil {
+			return err
+		}
+
+		if _, err = stmt.Exec(noteId); err != nil {
+			return err
+		}
+
+		stmt, err = repository.conn.Prepare(SQLDeleteNoteTags)
+		if err != nil {
+			return err
+		}
+
+		if _, err = stmt.Exec(noteId); err != nil {
+			return err
+		}
+
+		return nil
+	})
+}
+
+func (repository sqlRepository) GetNote(noteId string) (Note, error) {
+	return Note{}, nil
 }
 
 func (repository sqlRepository) prepareNote(note Note) (Note, error) {
