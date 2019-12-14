@@ -120,20 +120,6 @@ func main() {
 		Description: "short-form is a privacy focused, command-line journal.",
 		Version:     "1.0.0",
 		Commands: []*cli.Command{
-			//{
-			//	Name:    "configure",
-			//	Aliases: []string{"c"},
-			//	Usage:   "configure",
-			//	Flags: []cli.Flag{
-			//		&cli.StringFlag{
-			//			Name:        "path",
-			//			Usage:       "--path",
-			//			Value:       "",
-			//			DefaultText: "uh",
-			//			Aliases:     []string{"p"},
-			//		},
-			//	},
-			//},
 			{
 				Name:    "write",
 				Aliases: []string{"w"},

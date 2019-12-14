@@ -16,9 +16,10 @@ import (
 )
 
 var (
-	ErrEmptyContent    = errors.New("empty content")
-	ErrMissingNoteId   = errors.New("missing note id")
-	ErrMalformedNoteId = errors.New("malformed note id")
+	ErrEmptyContent       = errors.New("empty content")
+	ErrMissingNoteId      = errors.New("missing note id")
+	ErrMalformedNoteId    = errors.New("malformed note id")
+	ErrMalformedHighlight = errors.New("malformed highlight")
 )
 
 type Handler struct {
@@ -33,6 +34,48 @@ func NewHandler(repository data.Repository, encryptor utils.Encryptor) Handler {
 type parsedInput struct {
 	content string
 	tags    []string
+}
+
+type printOptions struct {
+	insecure  bool
+	highlight string
+}
+
+type highlight struct {
+	left      string
+	highlight string
+	right     string
+}
+
+func getPrintOptionsFromContext(ctx *cli.Context) printOptions {
+	return printOptions{
+		insecure:  ctx.Bool("insecure"),
+		highlight: ctx.String("content"),
+	}
+}
+
+func getHighlight(original string, hl string) []highlight {
+	var highlights []highlight
+
+	cursor := original
+	for cursor != "" {
+		startIndex := strings.Index(cursor, hl)
+		if startIndex == -1 {
+			break
+		}
+
+		cursorBytes := []byte(cursor)
+		highlight := highlight{
+			left:      string(cursorBytes[0:startIndex]),
+			highlight: string(cursorBytes[startIndex : startIndex+len(hl)]),
+			right:     "",
+		}
+
+		highlights = append(highlights, highlight)
+		cursor = strings.Replace(cursor, highlight.left+highlight.highlight, "", 1)
+	}
+
+	return highlights
 }
 
 func getInputFromContext(ctx *cli.Context) parsedInput {
@@ -64,7 +107,7 @@ func getSearchFiltersFromContext(c *cli.Context) data.Filters {
 	}
 }
 
-func (handler Handler) printNotes(notes []data.Note, insecure bool) {
+func (handler Handler) printNotes(notes []data.Note, options printOptions) {
 	noteCount := len(notes)
 	noteCountString := ""
 
@@ -83,11 +126,11 @@ func (handler Handler) printNotes(notes []data.Note, insecure bool) {
 	fmt.Println()
 
 	for _, note := range notes {
-		handler.printNote(note, insecure)
+		handler.printNote(note, options)
 	}
 }
 
-func (handler Handler) printNote(note data.Note, insecure bool) {
+func (handler Handler) printNote(note data.Note, options printOptions) {
 	bits := make([]string, 0, 4)
 
 	bits = append(bits, color.BlueString(note.Timestamp.Format("January 02, 2006 03:04 PM")))
@@ -105,8 +148,10 @@ func (handler Handler) printNote(note data.Note, insecure bool) {
 
 	fmt.Println(strings.Join(bits, " | "))
 
+	contentString := ""
+
 	if note.Secure {
-		if insecure {
+		if options.insecure {
 			if insecureContent, err := handler.encryptor.Decrypt([]byte(note.Content)); err != nil {
 				log.Fatalln(err)
 			} else {
@@ -116,9 +161,19 @@ func (handler Handler) printNote(note data.Note, insecure bool) {
 			fmt.Println("*****************")
 		}
 	} else {
-		fmt.Println(note.Content)
+		contentString = ""
+
+		if options.highlight != "" {
+			colorPrinter := color.New(color.Bold)
+			for _, hl := range getHighlight(note.Content, options.highlight) {
+				contentString += hl.left + colorPrinter.Sprint(hl.highlight) + hl.right
+			}
+		} else {
+			contentString = note.Content
+		}
 	}
 
+	fmt.Println(contentString)
 	fmt.Println()
 }
 
@@ -170,7 +225,7 @@ func (handler Handler) SearchTodayNote(ctx *cli.Context) error {
 	if notes, err := handler.Repository.SearchNotes(searchFilters); err != nil {
 		return err
 	} else {
-		handler.printNotes(notes, ctx.Bool("insecure"))
+		handler.printNotes(notes, getPrintOptionsFromContext(ctx))
 	}
 
 	return nil
@@ -190,7 +245,7 @@ func (handler Handler) SearchYesterdayNote(ctx *cli.Context) error {
 	if notes, err := handler.Repository.SearchNotes(searchFilters); err != nil {
 		return err
 	} else {
-		handler.printNotes(notes, ctx.Bool("insecure"))
+		handler.printNotes(notes, getPrintOptionsFromContext(ctx))
 	}
 
 	return nil
@@ -220,7 +275,7 @@ func (handler Handler) SearchNotes(ctx *cli.Context) error {
 	if notes, err := handler.Repository.SearchNotes(searchFilters); err != nil {
 		return err
 	} else {
-		handler.printNotes(notes, ctx.Bool("insecure"))
+		handler.printNotes(notes, getPrintOptionsFromContext(ctx))
 	}
 
 	return nil
