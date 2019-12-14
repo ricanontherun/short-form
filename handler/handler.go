@@ -71,8 +71,15 @@ func getHighlight(original string, hl string) []highlight {
 			right:     "",
 		}
 
-		highlights = append(highlights, highlight)
 		cursor = strings.Replace(cursor, highlight.left+highlight.highlight, "", 1)
+
+		// If we're on the the last occurrence, keep the tail.
+		nextIndex := strings.Index(cursor, hl)
+		if nextIndex == -1 {
+			highlight.right = string(cursorBytes[startIndex+len(hl):])
+		}
+
+		highlights = append(highlights, highlight)
 	}
 
 	return highlights
@@ -155,21 +162,24 @@ func (handler Handler) printNote(note data.Note, options printOptions) {
 			if insecureContent, err := handler.encryptor.Decrypt([]byte(note.Content)); err != nil {
 				log.Fatalln(err)
 			} else {
-				fmt.Println(string(insecureContent))
+				contentString = string(insecureContent)
 			}
 		} else {
-			fmt.Println("*****************")
+			contentString = "*****************"
 		}
 	} else {
-		contentString = ""
+		contentString = note.Content
+	}
 
-		if options.highlight != "" {
+	if options.highlight != "" && !options.insecure {
+		highlights := getHighlight(note.Content, options.highlight)
+
+		if len(highlights) > 0 {
+			contentString = ""
 			colorPrinter := color.New(color.Bold)
 			for _, hl := range getHighlight(note.Content, options.highlight) {
 				contentString += hl.left + colorPrinter.Sprint(hl.highlight) + hl.right
 			}
-		} else {
-			contentString = note.Content
 		}
 	}
 
