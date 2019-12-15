@@ -3,23 +3,23 @@ package utils
 import "testing"
 
 func TestEncryptDecrypt(t *testing.T) {
-	e1 := MakeEncryptor("secret")
-	e2 := MakeEncryptor("another secret")
+	s1Encryptor := MakeEncryptor("secret")
+	s2Encryptor := MakeEncryptor("another secret")
 
 	testString := "testing"
 
-	if encryptedBytes, err := e1.Encrypt([]byte(testString)); err != nil {
+	if s1EncryptedBytes, err := s1Encryptor.Encrypt([]byte(testString)); err != nil {
 		t.Error(err.Error())
 		t.FailNow()
 	} else {
-		if string(encryptedBytes) == testString {
-			t.Error("Encrypted encryptedBytes should be different than original string")
+		if string(s1EncryptedBytes) == testString {
+			t.Error("Encrypted bytes should be different than original string")
 		} else {
-			if decryptedBytes, err := e1.Decrypt(encryptedBytes); err != nil {
+			if s1DecryptedBytes, err := s1Encryptor.Decrypt(s1EncryptedBytes); err != nil {
 				t.Error(err.Error())
 				t.FailNow()
 			} else {
-				decryptedString := string(decryptedBytes)
+				decryptedString := string(s1DecryptedBytes)
 				if decryptedString != testString {
 					t.Errorf("%s != %s", decryptedString, testString)
 				}
@@ -27,7 +27,7 @@ func TestEncryptDecrypt(t *testing.T) {
 
 			// An encryptor initialized with another secret shouldn't be capable
 			// to decrypt another thing.
-			if _, err := e2.Decrypt(encryptedBytes); err == nil {
+			if _, err := s2Encryptor.Decrypt(s1EncryptedBytes); err == nil {
 				t.Error("Should not have been able to decrypt with another secret")
 				t.FailNow()
 			}

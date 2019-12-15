@@ -41,48 +41,11 @@ type printOptions struct {
 	highlight string
 }
 
-type highlight struct {
-	left      string
-	highlight string
-	right     string
-}
-
 func getPrintOptionsFromContext(ctx *cli.Context) printOptions {
 	return printOptions{
 		insecure:  ctx.Bool("insecure"),
 		highlight: ctx.String("content"),
 	}
-}
-
-func getHighlight(original string, hl string) []highlight {
-	var highlights []highlight
-
-	cursor := original
-	for cursor != "" {
-		startIndex := strings.Index(cursor, hl)
-		if startIndex == -1 {
-			break
-		}
-
-		cursorBytes := []byte(cursor)
-		highlight := highlight{
-			left:      string(cursorBytes[0:startIndex]),
-			highlight: string(cursorBytes[startIndex : startIndex+len(hl)]),
-			right:     "",
-		}
-
-		cursor = strings.Replace(cursor, highlight.left+highlight.highlight, "", 1)
-
-		// If we're on the the last occurrence, keep the tail.
-		nextIndex := strings.Index(cursor, hl)
-		if nextIndex == -1 {
-			highlight.right = string(cursorBytes[startIndex+len(hl):])
-		}
-
-		highlights = append(highlights, highlight)
-	}
-
-	return highlights
 }
 
 func getInputFromContext(ctx *cli.Context) parsedInput {
@@ -172,15 +135,7 @@ func (handler Handler) printNote(note data.Note, options printOptions) {
 	}
 
 	if options.highlight != "" && !options.insecure {
-		highlights := getHighlight(note.Content, options.highlight)
-
-		if len(highlights) > 0 {
-			contentString = ""
-			colorPrinter := color.New(color.Bold)
-			for _, hl := range getHighlight(note.Content, options.highlight) {
-				contentString += hl.left + colorPrinter.Sprint(hl.highlight) + hl.right
-			}
-		}
+		contentString = utils.HighlightString(note.Content, options.highlight)
 	}
 
 	fmt.Println(contentString)
