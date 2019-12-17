@@ -145,6 +145,21 @@ func main() {
 				Action:  handler.DeleteNote,
 			},
 			{
+				Name:    "edit",
+				Aliases: []string{"e"},
+				Usage:   "Edit a note's content",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:     "id",
+						Aliases:  []string{"i"},
+						Usage:    "note uuid",
+						Value:    "",
+						Required: true,
+					},
+				},
+				Action: handler.EditNote,
+			},
+			{
 				Name:    "search",
 				Usage:   "Search for notes by tag, date",
 				Aliases: []string{"s"},

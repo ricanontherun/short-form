@@ -48,6 +48,17 @@ func getPrintOptionsFromContext(ctx *cli.Context) printOptions {
 	}
 }
 
+func getCleanArgsFromContext(ctx *cli.Context) string {
+	rawArgs := ctx.Args().Slice()
+	clean := make([]string, 0, len(rawArgs))
+
+	for _, arg := range rawArgs {
+		clean = append(clean, strings.TrimSpace(arg))
+	}
+
+	return strings.Join(clean, " ")
+}
+
 func getInputFromContext(ctx *cli.Context) parsedInput {
 	return parsedInput{
 		content: strings.Join(ctx.Args().Slice(), " "),
@@ -79,8 +90,12 @@ func getSearchFiltersFromContext(c *cli.Context) data.Filters {
 
 func (handler Handler) printNotes(notes []data.Note, options printOptions) {
 	noteCount := len(notes)
-	noteCountString := ""
 
+	if noteCount <= 0 {
+		return
+	}
+
+	noteCountString := ""
 	if noteCount == 1 {
 		noteCountString = fmt.Sprintf("1 note found")
 	} else {
@@ -88,11 +103,6 @@ func (handler Handler) printNotes(notes []data.Note, options printOptions) {
 	}
 
 	fmt.Println(noteCountString)
-
-	if len(notes) <= 0 {
-		return
-	}
-
 	fmt.Println()
 
 	for _, note := range notes {
@@ -269,6 +279,15 @@ func (handler Handler) DeleteNote(ctx *cli.Context) error {
 	} else {
 		return result
 	}
+
+	return nil
+}
+
+func (handler Handler) EditNote(ctx *cli.Context) error {
+	id := ctx.String("id")
+	newContent := getCleanArgsFromContext(ctx)
+
+	fmt.Println(newContent, id)
 
 	return nil
 }
