@@ -121,8 +121,8 @@ func (repository sqlRepository) writeNoteTags(tx *sql.Tx, noteId string, tags []
 	if err != nil {
 		return err
 	}
-
 	defer tagInsertPreparedStatement.Close()
+
 	if _, err := tagInsertPreparedStatement.Exec(); err != nil {
 		return err
 	}
@@ -171,6 +171,8 @@ func (repository sqlRepository) SearchNotes(ctx Filters) ([]Note, error) {
 			if stmt, err := repository.conn.Prepare(SQLGetNoteTags); err != nil {
 				return nil, err
 			} else {
+				defer stmt.Close()
+
 				var tagString string
 
 				if err := stmt.QueryRow(note.ID).Scan(&tagString); err != nil {
@@ -210,6 +212,7 @@ func (repository sqlRepository) DeleteNote(noteId string) error {
 		if err != nil {
 			return err
 		}
+		defer stmt.Close()
 
 		if rs, err := stmt.Exec(noteId); err != nil {
 			return err
@@ -228,13 +231,26 @@ func (repository sqlRepository) DeleteNote(noteId string) error {
 		if err != nil {
 			return err
 		}
-
+		defer stmt.Close()
 		if _, err = stmt.Exec(noteId); err != nil {
 			return err
 		}
 
 		return nil
 	})
+}
+
+func (repository sqlRepository) UpdateNoteContent(noteId string, content string) error {
+	if stmt, err := repository.conn.Prepare(SQLUpdateNote); err != nil {
+		return err
+	} else {
+		defer stmt.Close()
+		if _, err := stmt.Exec(noteId, content); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (repository sqlRepository) GetNote(noteId string) (Note, error) {

@@ -45,6 +45,8 @@ GROUP BY notes.id
 ORDER BY notes.timestamp
 `
 
+const SQLUpdateNote = "UPDATE notes SET content=? WHERE id=?"
+
 const SQLDeleteNote = "DELETE FROM notes WHERE notes.id = ?"
 const SQLDeleteNoteTags = "DELETE FROM note_tags WHERE note_tags.note_id = ?"
 const SQLGetNoteTags = `SELECT GROUP_CONCAT(tag) as tags FROM note_tags WHERE note_id = ?`

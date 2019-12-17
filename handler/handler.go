@@ -3,7 +3,6 @@ package handler
 import (
 	"errors"
 	"fmt"
-	"github.com/fatih/color"
 	"github.com/ricanontherun/short-form/data"
 	"github.com/ricanontherun/short-form/utils"
 	uuid "github.com/satori/go.uuid"
@@ -23,7 +22,7 @@ var (
 )
 
 type Handler struct {
-	Repository data.Repository
+	repository data.Repository
 	encryptor  utils.Encryptor
 }
 
@@ -39,12 +38,14 @@ type parsedInput struct {
 type printOptions struct {
 	insecure  bool
 	highlight string
+	detailed  bool
 }
 
 func getPrintOptionsFromContext(ctx *cli.Context) printOptions {
 	return printOptions{
 		insecure:  ctx.Bool("insecure"),
 		highlight: ctx.String("content"),
+		detailed:  ctx.Bool("detailed"),
 	}
 }
 
@@ -113,13 +114,16 @@ func (handler Handler) printNotes(notes []data.Note, options printOptions) {
 func (handler Handler) printNote(note data.Note, options printOptions) {
 	bits := make([]string, 0, 4)
 
-	bits = append(bits, color.BlueString(note.Timestamp.Format("January 02, 2006 03:04 PM")))
-	bits = append(bits, color.MagentaString(note.ID))
+	bits = append(bits, note.Timestamp.Format("January 02, 2006 03:04 PM"))
 
-	if note.Secure {
-		bits = append(bits, color.GreenString("secure"))
-	} else {
-		bits = append(bits, color.RedString("insecure"))
+	if options.detailed {
+		bits = append(bits, note.ID)
+
+		if note.Secure {
+			bits = append(bits, "secure")
+		} else {
+			bits = append(bits, "insecure")
+		}
 	}
 
 	if len(note.Tags) > 0 {
@@ -185,7 +189,7 @@ func (handler Handler) writeNote(note data.Note) error {
 		return ErrEmptyContent
 	}
 
-	return handler.Repository.WriteNote(note)
+	return handler.repository.WriteNote(note)
 }
 
 func (handler Handler) SearchTodayNote(ctx *cli.Context) error {
@@ -197,7 +201,7 @@ func (handler Handler) SearchTodayNote(ctx *cli.Context) error {
 		To:   now,
 	}
 
-	if notes, err := handler.Repository.SearchNotes(searchFilters); err != nil {
+	if notes, err := handler.repository.SearchNotes(searchFilters); err != nil {
 		return err
 	} else {
 		handler.printNotes(notes, getPrintOptionsFromContext(ctx))
@@ -217,7 +221,7 @@ func (handler Handler) SearchYesterdayNote(ctx *cli.Context) error {
 		To:   yesterdayEnding,
 	}
 
-	if notes, err := handler.Repository.SearchNotes(searchFilters); err != nil {
+	if notes, err := handler.repository.SearchNotes(searchFilters); err != nil {
 		return err
 	} else {
 		handler.printNotes(notes, getPrintOptionsFromContext(ctx))
@@ -247,7 +251,7 @@ func (handler Handler) SearchNotes(ctx *cli.Context) error {
 		}
 	}
 
-	if notes, err := handler.Repository.SearchNotes(searchFilters); err != nil {
+	if notes, err := handler.repository.SearchNotes(searchFilters); err != nil {
 		return err
 	} else {
 		handler.printNotes(notes, getPrintOptionsFromContext(ctx))
@@ -271,7 +275,7 @@ func (handler Handler) DeleteNote(ctx *cli.Context) error {
 		return ErrMalformedNoteId
 	}
 
-	result := handler.Repository.DeleteNote(noteId)
+	result := handler.repository.DeleteNote(noteId)
 	if result == nil {
 		fmt.Println("ok")
 	} else if result == data.ErrNoteNotFound {
@@ -284,10 +288,13 @@ func (handler Handler) DeleteNote(ctx *cli.Context) error {
 }
 
 func (handler Handler) EditNote(ctx *cli.Context) error {
-	id := ctx.String("id")
-	newContent := getCleanArgsFromContext(ctx)
+	if err := handler.repository.UpdateNoteContent(
+		ctx.String("id"),
+		getCleanArgsFromContext(ctx),
+	); err != nil {
+		return err
+	}
 
-	fmt.Println(newContent, id)
-
+	fmt.Println("ok")
 	return nil
 }

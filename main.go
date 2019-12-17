@@ -144,21 +144,21 @@ func main() {
 				Usage:   "Delete a note",
 				Action:  handler.DeleteNote,
 			},
-			{
-				Name:    "edit",
-				Aliases: []string{"e"},
-				Usage:   "Edit a note's content",
-				Flags: []cli.Flag{
-					&cli.StringFlag{
-						Name:     "id",
-						Aliases:  []string{"i"},
-						Usage:    "note uuid",
-						Value:    "",
-						Required: true,
-					},
-				},
-				Action: handler.EditNote,
-			},
+			//{
+			//	Name:    "edit",
+			//	Aliases: []string{"e"},
+			//	Usage:   "Edit a note's content",
+			//	Flags: []cli.Flag{
+			//		&cli.StringFlag{
+			//			Name:     "id",
+			//			Aliases:  []string{"i"},
+			//			Usage:    "note uuid",
+			//			Value:    "",
+			//			Required: true,
+			//		},
+			//	},
+			//	Action: handler.EditNote,
+			//},
 			{
 				Name:    "search",
 				Usage:   "Search for notes by tag, date",
@@ -199,6 +199,12 @@ func main() {
 						Usage:   "Search by age of note, e.g 2d for 2 days old",
 						Aliases: []string{"a"},
 						Value:   "",
+					},
+					&cli.BoolFlag{
+						Name:    "detailed",
+						Aliases: []string{"d"},
+						Usage:   "Display detailed note information",
+						Value:   false,
 					},
 				},
 				Action: handler.SearchNotes,

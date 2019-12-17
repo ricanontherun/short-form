@@ -13,6 +13,8 @@ type Repository interface {
 	// Fetch a single note from the database
 	GetNote(noteId string) (Note, error)
 
+	UpdateNoteContent(nodeId string, content string) error
+
 	// Close the repository
 	Close()
 }
