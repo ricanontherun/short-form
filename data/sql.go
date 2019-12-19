@@ -33,7 +33,7 @@ VALUES (?, ?, ?, ?)
 const SQLInsertTags = `INSERT INTO note_tags (note_id, tag) VALUES`
 
 const SQLSearchForNotes = `
-SELECT notes.id, notes.content, COALESCE(GROUP_CONCAT(distinct note_tags.tag), "") as tags, notes.timestamp, notes.secure
+SELECT notes.id, notes.content, COALESCE(GROUP_CONCAT(DISTINCT note_tags.tag), "") as tags, notes.timestamp, notes.secure
 FROM notes
 LEFT JOIN note_tags
     ON note_tags.note_id = notes.id
@@ -45,8 +45,24 @@ GROUP BY notes.id
 ORDER BY notes.timestamp
 `
 
-const SQLUpdateNote = "UPDATE notes SET content=? WHERE id=?"
+const SQLUpdateNote = `UPDATE notes SET content=? WHERE id=?`
 
 const SQLDeleteNote = "DELETE FROM notes WHERE notes.id = ?"
+
 const SQLDeleteNoteTags = "DELETE FROM note_tags WHERE note_tags.note_id = ?"
-const SQLGetNoteTags = `SELECT GROUP_CONCAT(tag) as tags FROM note_tags WHERE note_id = ?`
+
+const SQLGetNoteTags = `SELECT GROUP_CONCAT(DISTINCT tag) as tags FROM note_tags WHERE note_id = ? LIMIT 1`
+
+const SQLGetNote = `
+SELECT notes.id, timestamp, content, secure
+FROM notes
+WHERE notes.id = ?
+`
+
+const SqlUpdateNote = `
+UPDATE notes
+SET
+	content = ?,
+	secure = ?
+WHERE id = ?
+`

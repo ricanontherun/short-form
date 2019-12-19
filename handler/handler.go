@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"github.com/ricanontherun/short-form/data"
@@ -8,6 +9,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 	"github.com/urfave/cli/v2"
 	"log"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -49,7 +51,21 @@ func getPrintOptionsFromContext(ctx *cli.Context) printOptions {
 	}
 }
 
-func getCleanArgsFromContext(ctx *cli.Context) string {
+func promptUser(message string) string {
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print(message)
+	text, _ := reader.ReadString('\n')
+	return strings.TrimSpace(strings.ToLower(text))
+}
+
+func makeUserConfirmAction(message string) bool {
+	return utils.InArray(promptUser(message+" [y/n]: "), []string{
+		"yes",
+		"y",
+	})
+}
+
+func getArgStringFromContext(ctx *cli.Context) string {
 	rawArgs := ctx.Args().Slice()
 	clean := make([]string, 0, len(rawArgs))
 
@@ -69,9 +85,13 @@ func getInputFromContext(ctx *cli.Context) parsedInput {
 
 // Return a cleaned array of tags provided as --tags=t1,t2,t3, as ['t1', 't2', 't3']
 func getTagsFromContext(c *cli.Context) []string {
+	return cleanTagsFromString(c.String("tags"))
+}
+
+func cleanTagsFromString(tagString string) []string {
 	tags := utils.NewSet()
 
-	for _, tag := range strings.Split(c.String("tags"), ",") {
+	for _, tag := range strings.Split(tagString, ",") {
 		trimmed := strings.TrimSpace(tag)
 
 		if len(trimmed) > 0 {
@@ -272,29 +292,96 @@ func (handler Handler) DeleteNote(ctx *cli.Context) error {
 
 	// Validate it's a V4 UUID
 	if _, err := uuid.FromString(noteId); err != nil {
-		return ErrMalformedNoteId
+		fmt.Println("that's not a valid note id")
+		return nil
 	}
 
-	result := handler.repository.DeleteNote(noteId)
-	if result == nil {
+	// Make sure the note exists.
+	if _, err := handler.repository.GetNote(noteId); err != nil {
+		if err != data.ErrNoteNotFound {
+			return err
+		}
+
+		fmt.Println("note not found")
+		return nil
+	}
+
+	// Prompt the user for confirmation.
+	if ok := makeUserConfirmAction("This will delete 1 note, are you sure?"); !ok {
+		fmt.Println("cancelled")
+		return nil
+	}
+
+	err := handler.repository.DeleteNote(noteId)
+	if err == nil {
 		fmt.Println("ok")
-	} else if result == data.ErrNoteNotFound {
-		fmt.Println("not found")
+	} else if err == data.ErrNoteNotFound {
+		fmt.Println("note not found")
 	} else {
-		return result
+		return err
 	}
 
 	return nil
 }
 
 func (handler Handler) EditNote(ctx *cli.Context) error {
-	if err := handler.repository.UpdateNoteContent(
-		ctx.String("id"),
-		getCleanArgsFromContext(ctx),
-	); err != nil {
+	// Get the noteId from context.
+	noteId := ctx.Args().First()
+
+	if len(noteId) == 0 {
+		fmt.Println("missing note id")
+		return nil
+	}
+
+	if _, err := uuid.FromString(noteId); err != nil {
+		fmt.Println("invalid note id")
+		return nil
+	}
+
+	note, err := handler.repository.GetNote(noteId)
+	if err != nil {
+		if err == data.ErrNoteNotFound {
+			fmt.Println("not not found")
+			return nil
+		}
+
 		return err
 	}
 
-	fmt.Println("ok")
+	changed := false
+	tagsChanged := false
+
+	newContent := promptUser("New Content: ")
+	if len(newContent) != 0 {
+		if note.Secure {
+			if newContentBytes, err := handler.encryptor.Encrypt([]byte(newContent)); err != nil {
+				return err
+			} else {
+				newContent = string(newContentBytes)
+			}
+		}
+
+		changed = true
+		note.Content = newContent
+	}
+
+	newTagsString := promptUser("New Tags: ")
+	if len(newTagsString) != 0 {
+		tagsChanged = true
+		note.Tags = cleanTagsFromString(newTagsString)
+	}
+
+	if changed {
+		if err := handler.repository.UpdateNote(*note); err != nil {
+			return err
+		}
+	}
+
+	if tagsChanged {
+		if err := handler.repository.TagNote(*note, note.Tags); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }

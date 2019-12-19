@@ -11,9 +11,12 @@ type Repository interface {
 	DeleteNote(noteId string) error
 
 	// Fetch a single note from the database
-	GetNote(noteId string) (Note, error)
+	GetNote(noteId string) (*Note, error)
 
-	UpdateNoteContent(nodeId string, content string) error
+	// Update a note.
+	UpdateNote(note Note) error
+
+	TagNote(note Note, tags []string) error
 
 	// Close the repository
 	Close()

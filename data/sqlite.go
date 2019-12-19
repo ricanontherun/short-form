@@ -12,7 +12,8 @@ import (
 )
 
 var (
-	ErrNoteNotFound = errors.New("not not found")
+	ErrNoteNotFound       = errors.New("note not found")
+	ErrFailedToUpdateNote = errors.New("failed to update note")
 )
 
 type sqlRepository struct {
@@ -114,6 +115,20 @@ func (repository sqlRepository) writeNote(tx *sql.Tx, note Note) error {
 	return nil
 }
 
+func (repository sqlRepository) TagNote(note Note, tags []string) error {
+	return repository.executeWithinTransaction(func(tx *sql.Tx) error {
+		if err := repository.deleteNoteTags(tx, note.ID); err != nil {
+			return err
+		}
+
+		if err := repository.writeNoteTags(tx, note.ID, tags); err != nil {
+			return err
+		}
+
+		return nil
+	})
+}
+
 func (repository sqlRepository) writeNoteTags(tx *sql.Tx, noteId string, tags []string) error {
 	sqlString := SQLInsertTags + " " + makeInsertValuesForTags(noteId, tags)
 	tagInsertPreparedStatement, err := tx.Prepare(sqlString)
@@ -183,7 +198,8 @@ func (repository sqlRepository) SearchNotes(ctx Filters) ([]Note, error) {
 			}
 		}
 
-		// Filter by content.
+		// Filter by content
+		// This has to be done here because encryption is at the application layer.
 		if len(ctx.Content) > 0 {
 			content := note.Content
 
@@ -208,7 +224,7 @@ func (repository sqlRepository) SearchNotes(ctx Filters) ([]Note, error) {
 
 func (repository sqlRepository) DeleteNote(noteId string) error {
 	return repository.executeWithinTransaction(func(tx *sql.Tx) error {
-		stmt, err := repository.conn.Prepare(SQLDeleteNote)
+		stmt, err := tx.Prepare(SQLDeleteNote)
 		if err != nil {
 			return err
 		}
@@ -227,25 +243,16 @@ func (repository sqlRepository) DeleteNote(noteId string) error {
 			}
 		}
 
-		stmt, err = repository.conn.Prepare(SQLDeleteNoteTags)
-		if err != nil {
-			return err
-		}
-		defer stmt.Close()
-		if _, err = stmt.Exec(noteId); err != nil {
-			return err
-		}
-
-		return nil
+		return repository.deleteNoteTags(tx, noteId)
 	})
 }
 
-func (repository sqlRepository) UpdateNoteContent(noteId string, content string) error {
-	if stmt, err := repository.conn.Prepare(SQLUpdateNote); err != nil {
+func (repository sqlRepository) deleteNoteTags(tx *sql.Tx, noteId string) error {
+	if stmt, err := tx.Prepare(SQLDeleteNoteTags); err != nil {
 		return err
 	} else {
 		defer stmt.Close()
-		if _, err := stmt.Exec(noteId, content); err != nil {
+		if _, err = stmt.Exec(noteId); err != nil {
 			return err
 		}
 	}
@@ -253,8 +260,58 @@ func (repository sqlRepository) UpdateNoteContent(noteId string, content string)
 	return nil
 }
 
-func (repository sqlRepository) GetNote(noteId string) (Note, error) {
-	return Note{}, nil
+// Update a note's content
+func (repository sqlRepository) UpdateNoteContent(noteId string, content string) error {
+	if stmt, err := repository.conn.Prepare(SQLUpdateNote); err != nil {
+		return err
+	} else {
+		if updateResult, err := stmt.Exec(content, noteId); err != nil {
+			return err
+		} else if count, err := updateResult.RowsAffected(); err != nil {
+			return err
+		} else if count <= 0 {
+			return ErrNoteNotFound
+		}
+	}
+
+	return nil
+}
+
+// Get a single note from the database.
+func (repository sqlRepository) GetNote(noteId string) (*Note, error) {
+	if stmt, err := repository.conn.Prepare(SQLGetNote); err != nil {
+		return nil, err
+	} else {
+		var note Note
+
+		record := stmt.QueryRow(noteId)
+		err := record.Scan(&note.ID, &note.Timestamp, &note.Content, &note.Secure)
+		if err != nil {
+			if err == sql.ErrNoRows { // This is fine.
+				return nil, ErrNoteNotFound
+			}
+
+			return nil, err
+		}
+
+		return &note, nil
+	}
+}
+
+func (repository sqlRepository) UpdateNote(note Note) error {
+	if stmt, err := repository.conn.Prepare(SqlUpdateNote); err != nil {
+		return err
+	} else {
+		if results, err := stmt.Exec(note.Content, note.Secure, note.ID); err != nil {
+			return err
+		} else if rows, err := results.RowsAffected(); err != nil {
+			return err
+		} else if rows == 0 {
+			return ErrFailedToUpdateNote
+		}
+	}
+
+	return nil
 }
 
 func (repository sqlRepository) prepareNote(note Note) (Note, error) {
