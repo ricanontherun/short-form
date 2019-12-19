@@ -23,6 +23,9 @@ These instructions require any recent (>= 1.13) version of Golang to be installe
 ## Encryption
 Secure (encrypted) notes are AES encrypted using golang crypto primitives. A random UUID secret is chosen for you on initial command start.
 
+## Storage
+Notes are stored on disk, in `~/.sf/data`. The underlying storage engine is provided via [https://github.com/mattn/go-sqlite3](https://github.com/mattn/go-sqlite3).
+
 ## Usage
 
 Display help
@@ -115,8 +118,6 @@ git rebase (interactive): git rebase -i COMMIT
 ```
 ➜ short-form delete 365c2ed4-ae92-4a34-88e3-f9edfac1aa19
 ```
-
-TODO, better output for these commands and their success/failure would be nice.
 
 #### Configure encryption password
 TODO
