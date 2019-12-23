@@ -17,7 +17,6 @@ const (
 var shortFormDirectoryPath string
 var shortFormDataDirectoryPath string
 var shortFormDatabasePath string
-var configFilePath string
 
 var once sync.Once
 
@@ -32,14 +31,7 @@ func initializePaths() {
 		shortFormDirectoryPath = path.Join(homeDirectory, shortFormDirectory)
 		shortFormDataDirectoryPath = path.Join(shortFormDirectoryPath, dataDirectory)
 		shortFormDatabasePath = path.Join(shortFormDataDirectoryPath, dataFile)
-		configFilePath = path.Join(shortFormDirectoryPath, configurationFile)
 	})
-}
-
-func ResolveConfigurationFilePath() string {
-	initializePaths()
-
-	return configFilePath
 }
 
 func ResolveDatabaseFilePath() string {

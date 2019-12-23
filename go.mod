@@ -15,6 +15,7 @@ require (
 	github.com/motemen/gore v0.4.1 // indirect
 	github.com/peterh/liner v1.1.0 // indirect
 	github.com/satori/go.uuid v1.2.0
+	github.com/stretchr/testify v1.4.0
 	github.com/syndtr/goleveldb v1.0.0
 	github.com/urfave/cli v1.22.2
 	github.com/urfave/cli/v2 v2.0.0

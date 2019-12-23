@@ -10,24 +10,14 @@ type Note struct {
 	Tags      []string
 	Content   string
 	Timestamp time.Time
-	Secure    bool
 }
 
-func NewSecureNote(tags []string, content string) Note {
-	return newNote(tags, content, true)
-}
-
-func NewInsecureNote(tags []string, content string) Note {
-	return newNote(tags, content, false)
-}
-
-func newNote(tags []string, content string, secure bool) Note {
+func NewNote(tags []string, content string) Note {
 	return Note{
 		ID:        uuid.NewV4().String(),
 		Timestamp: time.Now(),
 		Tags:      tags,
 		Content:   content,
-		Secure:    secure,
 	}
 }
 
@@ -37,6 +27,5 @@ func (note Note) Clone() Note {
 		Tags:      note.Tags,
 		Content:   note.Content,
 		Timestamp: note.Timestamp,
-		Secure:    note.Secure,
 	}
 }

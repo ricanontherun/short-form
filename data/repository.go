@@ -17,7 +17,4 @@ type Repository interface {
 	UpdateNote(note Note) error
 
 	TagNote(note Note, tags []string) error
-
-	// Close the repository
-	Close()
 }

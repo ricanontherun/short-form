@@ -1,68 +1,295 @@
 package data
 
-const SQLInitializeDatabase = `
-CREATE TABLE IF NOT EXISTS notes
-(
-	id CHAR(16) not null
-		constraint notes_pk
-			primary key,
-	timestamp TIMESTAMP not null,
-	content TEXT not null,
-	secure int not null
-);
+import (
+	"database/sql"
+	"errors"
+	"fmt"
+	"strings"
+)
 
-CREATE INDEX IF NOT EXISTS notes_content_index ON notes (content);
+type sqlRepository struct {
+	conn *sql.DB
+}
 
-CREATE UNIQUE INDEX IF NOT EXISTS notes_id_uindex ON notes (id);
+func NewSqlRepository(db *sql.DB) (Repository, error) {
+	repository := sqlRepository{db}
 
-CREATE INDEX IF NOT EXISTS notes_timestamp_index ON notes (TIMESTAMP);
+	if err := repository.initialize(); err != nil {
+		db.Close()
+		return nil, errors.New("failed to initialize database: " + err.Error())
+	}
 
-CREATE TABLE IF NOT EXISTS note_tags (note_id CHAR(16) NOT NULL,
-                                      tag VARCHAR(50) NOT NULL);
+	return repository, nil
+}
 
-CREATE INDEX IF NOT EXISTS note_tags_note_id_index ON note_tags (note_id);
+func buildSearchQueryFromContext(ctx Filters) string {
+	var where []string
 
-CREATE INDEX IF NOT EXISTS note_tags_tag_index ON note_tags (tag);
-`
+	if ctx.DateRange != nil {
+		filter := fmt.Sprintf(
+			" timestamp BETWEEN datetime('%s') and datetime('%s') ",
+			ctx.DateRange.From.Format("2006-01-02 15:04:05"),
+			ctx.DateRange.To.Format("2006-01-02 15:04:05"),
+		)
 
-const SQLInsertNote = `
-INSERT INTO notes (id, timestamp, content, secure)
-VALUES (?, ?, ?, ?)
-`
+		where = append(where, filter)
+	}
 
-const SQLInsertTags = `INSERT INTO note_tags (note_id, tag) VALUES`
+	if len(ctx.Tags) > 0 {
+		quotedTags := make([]string, 0, len(ctx.Tags))
+		for _, tag := range ctx.Tags {
+			quotedTags = append(quotedTags, "'"+tag+"'")
+		}
 
-const SQLSearchForNotes = `
-SELECT notes.id, notes.content, COALESCE(GROUP_CONCAT(DISTINCT note_tags.tag), "") as tags, notes.timestamp, notes.secure
-FROM notes
-LEFT JOIN note_tags
-    ON note_tags.note_id = notes.id
+		filter := fmt.Sprintf(" note_tags.tag in (%s)", strings.Join(quotedTags, ","))
 
--- WHERE clause
-%s
+		where = append(where, filter)
+	}
 
-GROUP BY notes.id
-ORDER BY notes.timestamp
-`
+	whereClauseString := ""
+	if len(where) > 0 {
+		whereClauseString = "WHERE " + strings.Join(where, "AND")
+	}
 
-const SQLUpdateNote = `UPDATE notes SET content=? WHERE id=?`
+	return fmt.Sprintf(SQLSearchForNotes, whereClauseString)
+}
 
-const SQLDeleteNote = "DELETE FROM notes WHERE notes.id = ?"
+func makeInsertValuesForTags(noteId string, tags []string) string {
+	inserts := make([]string, 0, len(tags))
 
-const SQLDeleteNoteTags = "DELETE FROM note_tags WHERE note_tags.note_id = ?"
+	for _, tag := range tags {
+		inserts = append(inserts, fmt.Sprintf("('%s', '%s')", noteId, tag))
+	}
 
-const SQLGetNoteTags = `SELECT GROUP_CONCAT(DISTINCT tag) as tags FROM note_tags WHERE note_id = ? LIMIT 1`
+	return strings.Join(inserts, ",")
+}
 
-const SQLGetNote = `
-SELECT notes.id, timestamp, content, secure
-FROM notes
-WHERE notes.id = ?
-`
+func (repository sqlRepository) WriteNote(note Note) error {
+	return repository.executeWithinTransaction(func(tx *sql.Tx) error {
+		if err := repository.writeNote(tx, note); err != nil {
+			return err
+		}
 
-const SqlUpdateNote = `
-UPDATE notes
-SET
-	content = ?,
-	secure = ?
-WHERE id = ?
-`
+		if note.Tags != nil && len(note.Tags) > 0 {
+			if err := repository.writeNoteTags(tx, note.ID, note.Tags); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+}
+
+func (repository sqlRepository) writeNote(tx *sql.Tx, note Note) error {
+	noteInsertStatement, err := tx.Prepare(SQLInsertNote)
+	if err != nil {
+		return err
+	}
+	defer noteInsertStatement.Close()
+
+	if _, err = noteInsertStatement.Exec(note.ID, note.Timestamp, note.Content); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (repository sqlRepository) TagNote(note Note, tags []string) error {
+	return repository.executeWithinTransaction(func(tx *sql.Tx) error {
+		if err := repository.deleteNoteTags(tx, note.ID); err != nil {
+			return err
+		}
+
+		if err := repository.writeNoteTags(tx, note.ID, tags); err != nil {
+			return err
+		}
+
+		return nil
+	})
+}
+
+func (repository sqlRepository) writeNoteTags(tx *sql.Tx, noteId string, tags []string) error {
+	sqlString := SQLInsertTags + " " + makeInsertValuesForTags(noteId, tags)
+	tagInsertPreparedStatement, err := tx.Prepare(sqlString)
+
+	if err != nil {
+		return err
+	}
+	defer tagInsertPreparedStatement.Close()
+
+	if _, err := tagInsertPreparedStatement.Exec(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (repository sqlRepository) executeWithinTransaction(callback func(*sql.Tx) error) error {
+	if transaction, err := repository.conn.Begin(); err != nil {
+		return err
+	} else {
+		if err := callback(transaction); err != nil {
+			if rollbackErr := transaction.Rollback(); rollbackErr != nil {
+				return rollbackErr
+			}
+
+			return err
+		}
+
+		return transaction.Commit()
+	}
+}
+
+func (repository sqlRepository) SearchNotes(ctx Filters) ([]Note, error) {
+	stmt, err := repository.conn.Prepare(buildSearchQueryFromContext(ctx))
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+
+	rs, err := stmt.Query()
+	if err != nil {
+		return nil, err
+	}
+
+	var notes []Note
+	for rs.Next() {
+		var note Note
+		var tagString string
+
+		if err := rs.Scan(&note.ID, &note.Content, &tagString, &note.Timestamp); err != nil {
+			return nil, err
+		}
+
+		if len(tagString) > 0 {
+			if stmt, err := repository.conn.Prepare(SQLGetNoteTags); err != nil {
+				return nil, err
+			} else {
+				defer stmt.Close()
+
+				var tagString string
+
+				if err := stmt.QueryRow(note.ID).Scan(&tagString); err != nil {
+					return nil, err
+				} else {
+					note.Tags = strings.Split(tagString, ",")
+				}
+			}
+		}
+
+		// Filter by content
+		// This has to be done here because encryption is at the application layer.
+		if len(ctx.Content) > 0 {
+			content := note.Content
+
+			if !strings.Contains(content, ctx.Content) {
+				continue
+			}
+		}
+
+		notes = append(notes, note)
+	}
+
+	return notes, nil
+}
+
+func (repository sqlRepository) DeleteNote(noteId string) error {
+	return repository.executeWithinTransaction(func(tx *sql.Tx) error {
+		stmt, err := tx.Prepare(SQLDeleteNote)
+		if err != nil {
+			return err
+		}
+		defer stmt.Close()
+
+		if rs, err := stmt.Exec(noteId); err != nil {
+			return err
+		} else {
+			numDeleted, err := rs.RowsAffected()
+			if err != nil {
+				return err
+			}
+
+			if numDeleted <= 0 {
+				return ErrNoteNotFound
+			}
+		}
+
+		return repository.deleteNoteTags(tx, noteId)
+	})
+}
+
+func (repository sqlRepository) deleteNoteTags(tx *sql.Tx, noteId string) error {
+	if stmt, err := tx.Prepare(SQLDeleteNoteTags); err != nil {
+		return err
+	} else {
+		defer stmt.Close()
+		if _, err = stmt.Exec(noteId); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Update a note's content
+func (repository sqlRepository) UpdateNoteContent(noteId string, content string) error {
+	if stmt, err := repository.conn.Prepare(SQLUpdateNote); err != nil {
+		return err
+	} else {
+		if updateResult, err := stmt.Exec(content, noteId); err != nil {
+			return err
+		} else if count, err := updateResult.RowsAffected(); err != nil {
+			return err
+		} else if count <= 0 {
+			return ErrNoteNotFound
+		}
+	}
+
+	return nil
+}
+
+// Get a single note from the database.
+func (repository sqlRepository) GetNote(noteId string) (*Note, error) {
+	if stmt, err := repository.conn.Prepare(SQLGetNote); err != nil {
+		return nil, err
+	} else {
+		var note Note
+
+		record := stmt.QueryRow(noteId)
+		err := record.Scan(&note.ID, &note.Timestamp, &note.Content)
+		if err != nil {
+			if err == sql.ErrNoRows { // This is fine.
+				return nil, ErrNoteNotFound
+			}
+
+			return nil, err
+		}
+
+		return &note, nil
+	}
+}
+
+func (repository sqlRepository) UpdateNote(note Note) error {
+	if stmt, err := repository.conn.Prepare(SqlUpdateNote); err != nil {
+		return err
+	} else {
+		if results, err := stmt.Exec(note.Content, note.ID); err != nil {
+			return err
+		} else if rows, err := results.RowsAffected(); err != nil {
+			return err
+		} else if rows == 0 {
+			return ErrFailedToUpdateNote
+		}
+	}
+
+	return nil
+}
+
+// Initialize the database structure.
+func (repository sqlRepository) initialize() error {
+	if _, err := repository.conn.Exec(SQLInitializeDatabase); err != nil {
+		return err
+	}
+
+	return nil
+}
