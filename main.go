@@ -79,7 +79,7 @@ func main() {
 						Name:    "today",
 						Usage:   "Search for notes written today",
 						Aliases: []string{"t"},
-						Action:  handle.SearchTodayNote,
+						Action:  handle.SearchToday,
 					},
 
 					// Search against yesterday's notes.
@@ -87,7 +87,7 @@ func main() {
 						Name:    "yesterday",
 						Usage:   "Search for notes written yesterday",
 						Aliases: []string{"y"},
-						Action:  handle.SearchYesterdayNote,
+						Action:  handle.SearchYesterday,
 					},
 				},
 				Flags: []cli.Flag{

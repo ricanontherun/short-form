@@ -1,14 +1,9 @@
 package data
 
-import "time"
-
-type DateRange struct {
-	From time.Time
-	To   time.Time
-}
+import "github.com/ricanontherun/short-form/utils"
 
 type Filters struct {
-	DateRange *DateRange
+	DateRange *utils.DateRange
 
 	Tags []string
 

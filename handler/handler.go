@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ricanontherun/short-form/data"
+	"github.com/ricanontherun/short-form/utils"
 	uuid "github.com/satori/go.uuid"
 	"github.com/urfave/cli/v2"
 	"regexp"
@@ -50,14 +51,12 @@ func (handler handler) writeNote(note data.Note) error {
 	return handler.repository.WriteNote(note)
 }
 
-func (handler handler) SearchTodayNote(ctx *cli.Context) error {
+func (handler handler) SearchToday(ctx *cli.Context) error {
 	now := time.Now()
 
 	searchFilters := getSearchFiltersFromContext(ctx)
-	searchFilters.DateRange = &data.DateRange{
-		From: time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()),
-		To:   now,
-	}
+	dateRange := utils.GetRangeToday(now)
+	searchFilters.DateRange = &dateRange
 
 	if notes, err := handler.repository.SearchNotes(searchFilters); err != nil {
 		return err
@@ -68,18 +67,13 @@ func (handler handler) SearchTodayNote(ctx *cli.Context) error {
 	return nil
 }
 
-func (handler handler) SearchYesterdayNote(ctx *cli.Context) error {
-	yesterday := time.Now().AddDate(0, 0, -1)
-	yesterdayStart := time.Date(yesterday.Year(), yesterday.Month(), yesterday.Day(), 0, 0, 0, 0, yesterday.Location())
-	yesterdayEnding := time.Date(yesterdayStart.Year(), yesterdayStart.Month(), yesterdayStart.Day(), 23, 59, 59, 0, yesterday.Location())
+func (handler handler) SearchYesterday(ctx *cli.Context) error {
+	baseFilters := getSearchFiltersFromContext(ctx)
 
-	searchFilters := getSearchFiltersFromContext(ctx)
-	searchFilters.DateRange = &data.DateRange{
-		From: yesterdayStart,
-		To:   yesterdayEnding,
-	}
+	dateRange := utils.GetRangeYesterday(time.Now())
+	baseFilters.DateRange = &dateRange
 
-	if notes, err := handler.repository.SearchNotes(searchFilters); err != nil {
+	if notes, err := handler.repository.SearchNotes(baseFilters); err != nil {
 		return err
 	} else {
 		handler.printNotes(notes, getPrintOptionsFromContext(ctx))
@@ -102,7 +96,7 @@ func (handler handler) SearchNotes(ctx *cli.Context) error {
 			end := time.Now()
 			start := end.AddDate(0, 0, -ageDays)
 
-			searchFilters.DateRange = &data.DateRange{
+			searchFilters.DateRange = &utils.DateRange{
 				From: start,
 				To:   end,
 			}

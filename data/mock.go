@@ -15,8 +15,9 @@ func (repository *mockRepository) WriteNote(note Note) error {
 	return args.Error(0)
 }
 
-func (mockRepository) SearchNotes(ctx Filters) ([]Note, error) {
-	return nil, nil
+func (repository *mockRepository) SearchNotes(ctx Filters) ([]Note, error) {
+	args := repository.Called(ctx)
+	return []Note{}, args.Error(0)
 }
 
 func (mockRepository) DeleteNote(noteId string) error {

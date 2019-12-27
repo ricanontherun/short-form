@@ -60,7 +60,7 @@ func cleanTagsFromString(tagString string) []string {
 		trimmed := strings.TrimSpace(tag)
 
 		if len(trimmed) > 0 {
-			tags.Add(strings.ToLower(trimmed))
+			tags.Add(trimmed)
 		}
 	}
 
@@ -70,7 +70,7 @@ func cleanTagsFromString(tagString string) []string {
 func getSearchFiltersFromContext(c *cli.Context) data.Filters {
 	return data.Filters{
 		Tags:    getTagsFromContext(c),
-		Content: strings.ToLower(c.String("content")),
+		Content: strings.TrimSpace(c.String("content")),
 	}
 }
 

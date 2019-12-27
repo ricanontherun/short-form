@@ -46,7 +46,7 @@ LEFT JOIN note_tags
 
 -- WHERE clause
 %s
-
+COLLATE NOCASE
 GROUP BY notes.id
 ORDER BY notes.timestamp
 `

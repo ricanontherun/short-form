@@ -46,6 +46,10 @@ func buildSearchQueryFromContext(ctx Filters) string {
 		where = append(where, filter)
 	}
 
+	if len(ctx.Content) > 0 {
+		where = append(where, " notes.content LIKE '%"+ctx.Content+"%'")
+	}
+
 	whereClauseString := ""
 	if len(where) > 0 {
 		whereClauseString = "WHERE " + strings.Join(where, "AND")
@@ -174,16 +178,6 @@ func (repository sqlRepository) SearchNotes(ctx Filters) ([]Note, error) {
 				} else {
 					note.Tags = strings.Split(tagString, ",")
 				}
-			}
-		}
-
-		// Filter by content
-		// This has to be done here because encryption is at the application layer.
-		if len(ctx.Content) > 0 {
-			content := note.Content
-
-			if !strings.Contains(content, ctx.Content) {
-				continue
 			}
 		}
 
