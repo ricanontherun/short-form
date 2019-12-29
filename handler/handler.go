@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"errors"
 	"fmt"
 	"github.com/ricanontherun/short-form/data"
 	"github.com/ricanontherun/short-form/utils"
@@ -13,21 +12,32 @@ import (
 	"time"
 )
 
-var (
-	ErrEmptyContent    = errors.New("empty content")
-	ErrMissingNoteId   = errors.New("missing note id")
-	ErrMalformedNoteId = errors.New("invalid note id")
-	ErrNoteNotFound    = errors.New("note not found")
-)
+type nowSupplier func() time.Time
 
 type handler struct {
-	repository data.Repository
+	repository  data.Repository
+	nowSupplier nowSupplier
+	userInput   UserInput
+}
+
+func defaultNowSupplier() time.Time {
+	return time.Now()
 }
 
 // Create a new handler.
 // A handler serves as the entry point to the application, fulfilling user commands.
 func NewHandler(repository data.Repository) handler {
-	return handler{repository}
+	return handler{
+		repository:  repository,
+		nowSupplier: defaultNowSupplier,
+		userInput:   NewUserInput(),
+	}
+}
+
+// Create a handler with a custom nowSupplier
+// Useful for testing date range parsing.
+func NewHandlerFromArguments(repository data.Repository, nowSupplier nowSupplier, input UserInput) handler {
+	return handler{repository, nowSupplier, input}
 }
 
 func (handler handler) WriteNote(ctx *cli.Context) error {
@@ -52,7 +62,7 @@ func (handler handler) writeNote(note data.Note) error {
 }
 
 func (handler handler) SearchToday(ctx *cli.Context) error {
-	now := time.Now()
+	now := handler.nowSupplier()
 
 	searchFilters := getSearchFiltersFromContext(ctx)
 	dateRange := utils.GetRangeToday(now)
@@ -70,7 +80,7 @@ func (handler handler) SearchToday(ctx *cli.Context) error {
 func (handler handler) SearchYesterday(ctx *cli.Context) error {
 	baseFilters := getSearchFiltersFromContext(ctx)
 
-	dateRange := utils.GetRangeYesterday(time.Now())
+	dateRange := utils.GetRangeYesterday(handler.nowSupplier())
 	baseFilters.DateRange = &dateRange
 
 	if notes, err := handler.repository.SearchNotes(baseFilters); err != nil {
@@ -86,14 +96,14 @@ func (handler handler) SearchNotes(ctx *cli.Context) error {
 	searchFilters := getSearchFiltersFromContext(ctx)
 
 	// Check for age.
-	age := strings.ToLower(ctx.String("age"))
+	age := strings.ToLower(ctx.String(FlagAge))
 	if len(age) > 0 {
 		validAge := regexp.MustCompile(`^\d+d$`)
 		if !validAge.MatchString(age) {
-			return errors.New("invalid age: " + age)
+			return ErrInvalidAge
 		} else {
 			ageDays, _ := strconv.Atoi(strings.TrimRight(age, "d"))
-			end := time.Now()
+			end := handler.nowSupplier()
 			start := end.AddDate(0, 0, -ageDays)
 
 			searchFilters.DateRange = &utils.DateRange{
@@ -113,10 +123,6 @@ func (handler handler) SearchNotes(ctx *cli.Context) error {
 }
 
 func (handler handler) DeleteNote(ctx *cli.Context) error {
-	if len(ctx.Args().Slice()) <= 0 {
-		return errors.New("no note id provided")
-	}
-
 	noteId := strings.TrimSpace(ctx.Args().First())
 	if len(noteId) <= 0 {
 		return ErrMissingNoteId
@@ -124,7 +130,7 @@ func (handler handler) DeleteNote(ctx *cli.Context) error {
 
 	// Validate it's a V4 UUID
 	if _, err := uuid.FromString(noteId); err != nil {
-		return ErrMalformedNoteId
+		return ErrInvalidNoteId
 	}
 
 	// Make sure the note exists.
@@ -133,9 +139,12 @@ func (handler handler) DeleteNote(ctx *cli.Context) error {
 	}
 
 	// Prompt the user for confirmation.
-	if ok := makeUserConfirmAction("This will delete 1 note, are you sure?"); !ok {
-		fmt.Println("cancelled")
-		return nil
+	// Remove no-confirm, replace with dependency injected UserInput.
+	if !ctx.Bool(FlagNoConfirm) {
+		if ok := handler.makeUserConfirmAction("This will delete 1 note, are you sure?"); !ok {
+			fmt.Println("cancelled")
+			return nil
+		}
 	}
 
 	if err := handler.repository.DeleteNote(noteId); err != nil {
@@ -156,7 +165,7 @@ func (handler handler) EditNote(ctx *cli.Context) error {
 	}
 
 	if _, err := uuid.FromString(noteId); err != nil {
-		return ErrMalformedNoteId
+		return ErrInvalidNoteId
 	}
 
 	note, err := handler.repository.GetNote(noteId)
@@ -171,13 +180,13 @@ func (handler handler) EditNote(ctx *cli.Context) error {
 	changed := false
 	tagsChanged := false
 
-	newContent := promptUser("New Content: ")
+	newContent := handler.promptUser("New Content: ")
 	if len(newContent) != 0 {
 		changed = true
 		note.Content = newContent
 	}
 
-	newTagsString := promptUser("New Tags: ")
+	newTagsString := handler.promptUser("New Tags: ")
 	if len(newTagsString) != 0 {
 		tagsChanged = true
 		note.Tags = cleanTagsFromString(newTagsString)

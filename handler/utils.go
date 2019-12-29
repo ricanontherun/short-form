@@ -1,12 +1,10 @@
 package handler
 
 import (
-	"bufio"
 	"fmt"
 	"github.com/ricanontherun/short-form/data"
 	"github.com/ricanontherun/short-form/utils"
 	"github.com/urfave/cli/v2"
-	"os"
 	"strings"
 )
 
@@ -22,20 +20,18 @@ type printOptions struct {
 
 func getPrintOptionsFromContext(ctx *cli.Context) printOptions {
 	return printOptions{
-		highlight: ctx.String("content"),
-		detailed:  ctx.Bool("detailed"),
+		highlight: ctx.String(FlagContent),
+		detailed:  ctx.Bool(FlagDetailed),
 	}
 }
 
-func promptUser(message string) string {
-	reader := bufio.NewReader(os.Stdin)
+func (handler *handler) promptUser(message string) string {
 	fmt.Print(message)
-	text, _ := reader.ReadString('\n')
-	return strings.TrimSpace(strings.ToLower(text))
+	return strings.TrimSpace(strings.ToLower(handler.userInput.GetString()))
 }
 
-func makeUserConfirmAction(message string) bool {
-	return utils.InArray(promptUser(message+" [y/n]: "), []string{
+func (handler *handler) makeUserConfirmAction(message string) bool {
+	return utils.InArray(handler.promptUser(message+" [y/n]: "), []string{
 		"yes",
 		"y",
 	})
@@ -50,7 +46,7 @@ func getInputFromContext(ctx *cli.Context) parsedInput {
 
 // Return a cleaned array of tags provided as --tags=t1,t2,t3, as ['t1', 't2', 't3']
 func getTagsFromContext(c *cli.Context) []string {
-	return cleanTagsFromString(c.String("tags"))
+	return cleanTagsFromString(c.String(FlagTags))
 }
 
 func cleanTagsFromString(tagString string) []string {
@@ -70,7 +66,7 @@ func cleanTagsFromString(tagString string) []string {
 func getSearchFiltersFromContext(c *cli.Context) data.Filters {
 	return data.Filters{
 		Tags:    getTagsFromContext(c),
-		Content: strings.TrimSpace(c.String("content")),
+		Content: strings.TrimSpace(c.String(FlagContent)),
 	}
 }
 

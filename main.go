@@ -61,7 +61,14 @@ func main() {
 				Name:    "delete",
 				Aliases: []string{"d"},
 				Usage:   "Delete a note",
-				Action:  handle.DeleteNote,
+				Flags: []cli.Flag{
+					&cli.BoolFlag{
+						Name:  "no-confirm",
+						Usage: "Don't prompt for confirmation",
+						Value: false,
+					},
+				},
+				Action: handle.DeleteNote,
 			},
 			{
 				Name:    "edit",

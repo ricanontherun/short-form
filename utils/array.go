@@ -1,7 +1,6 @@
 package utils
 
-import "strings"
-
+// Check if a string exists in a slice.
 func InArray(elem string, array []string) bool {
 	for _, a := range array {
 		if a == elem {
@@ -10,8 +9,4 @@ func InArray(elem string, array []string) bool {
 	}
 
 	return false
-}
-
-func ToCommaSeparatedString(array []string) string {
-	return strings.Join(array, ", ")
 }

@@ -1,6 +1,8 @@
 package data
 
-import "github.com/stretchr/testify/mock"
+import (
+	"github.com/stretchr/testify/mock"
+)
 
 type mockRepository struct {
 	mock.Mock
@@ -20,11 +22,12 @@ func (repository *mockRepository) SearchNotes(ctx Filters) ([]Note, error) {
 	return []Note{}, args.Error(0)
 }
 
-func (mockRepository) DeleteNote(noteId string) error {
-	return nil
+func (repository *mockRepository) DeleteNote(noteId string) error {
+	return repository.Called(noteId).Error(0)
 }
 
-func (mockRepository) GetNote(noteId string) (*Note, error) {
+func (repository *mockRepository) GetNote(noteId string) (*Note, error) {
+	repository.Called(noteId)
 	return nil, nil
 }
 

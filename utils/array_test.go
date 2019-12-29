@@ -9,15 +9,25 @@ func TestInArray(t *testing.T) {
 		"three",
 	}
 
-	for _, elem := range array {
-		if !InArray(elem, array) {
-			t.Errorf("%s should be in array", elem)
-		}
+	tests := []struct {
+		elem        string
+		shouldExist bool
+	}{
+		{"one", true},
+		{"two", true},
+		{"three", true},
+		{"1", false},
+		{"no", false},
+		{"", false},
 	}
 
-	for _, badElem := range []string{"four", "five", "six"} {
-		if InArray(badElem, array) {
-			t.Errorf("%s should not be array", badElem)
+	for _, test := range tests {
+		if InArray(test.elem, array) != test.shouldExist {
+			if test.shouldExist {
+				t.Fatalf("'%s' should exist in the array, but it does not", test.elem)
+			} else {
+				t.Fatalf("'%s' should not exist in the array, but it does", test.elem)
+			}
 		}
 	}
 }

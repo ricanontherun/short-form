@@ -68,6 +68,6 @@ WHERE notes.id = ?
 const SqlUpdateNote = `
 UPDATE notes
 SET
-	content = ?,
+	content = ?
 WHERE id = ?
 `
