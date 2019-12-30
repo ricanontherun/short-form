@@ -1,9 +1,9 @@
-package handler
+package command
 
 import (
 	"fmt"
-	"github.com/ricanontherun/short-form/data"
-	"github.com/ricanontherun/short-form/utils"
+	"github.com/ricanontherun/short-form/models"
+	"github.com/ricanontherun/short-form/repository"
 	uuid "github.com/satori/go.uuid"
 	"github.com/urfave/cli/v2"
 	"regexp"
@@ -15,28 +15,24 @@ import (
 type nowSupplier func() time.Time
 
 type handler struct {
-	repository  data.Repository
+	repository  repository.Repository
 	nowSupplier nowSupplier
 	userInput   UserInput
 }
 
-func defaultNowSupplier() time.Time {
+func DefaultNowSupplier() time.Time {
 	return time.Now()
 }
 
 // Create a new handler.
 // A handler serves as the entry point to the application, fulfilling user commands.
-func NewHandler(repository data.Repository) handler {
-	return handler{
-		repository:  repository,
-		nowSupplier: defaultNowSupplier,
-		userInput:   NewUserInput(),
-	}
+func NewHandler(repository repository.Repository) handler {
+	return NewHandlerFromArguments(repository, DefaultNowSupplier, NewUserInput())
 }
 
 // Create a handler with a custom nowSupplier
 // Useful for testing date range parsing.
-func NewHandlerFromArguments(repository data.Repository, nowSupplier nowSupplier, input UserInput) handler {
+func NewHandlerFromArguments(repository repository.Repository, nowSupplier nowSupplier, input UserInput) handler {
 	return handler{repository, nowSupplier, input}
 }
 
@@ -47,7 +43,7 @@ func (handler handler) WriteNote(ctx *cli.Context) error {
 		return ErrEmptyContent
 	}
 
-	note := data.NewNote(input.tags, input.content)
+	note := models.NewNote(input.tags, input.content)
 	if err := handler.repository.WriteNote(note); err != nil {
 		return err
 	}
@@ -57,7 +53,7 @@ func (handler handler) WriteNote(ctx *cli.Context) error {
 	return nil
 }
 
-func (handler handler) writeNote(note data.Note) error {
+func (handler handler) writeNote(note models.Note) error {
 	return handler.repository.WriteNote(note)
 }
 
@@ -65,7 +61,7 @@ func (handler handler) SearchToday(ctx *cli.Context) error {
 	now := handler.nowSupplier()
 
 	searchFilters := getSearchFiltersFromContext(ctx)
-	dateRange := utils.GetRangeToday(now)
+	dateRange := models.GetRangeToday(now)
 	searchFilters.DateRange = &dateRange
 
 	if notes, err := handler.repository.SearchNotes(searchFilters); err != nil {
@@ -80,7 +76,7 @@ func (handler handler) SearchToday(ctx *cli.Context) error {
 func (handler handler) SearchYesterday(ctx *cli.Context) error {
 	baseFilters := getSearchFiltersFromContext(ctx)
 
-	dateRange := utils.GetRangeYesterday(handler.nowSupplier())
+	dateRange := models.GetRangeYesterday(handler.nowSupplier())
 	baseFilters.DateRange = &dateRange
 
 	if notes, err := handler.repository.SearchNotes(baseFilters); err != nil {
@@ -106,7 +102,7 @@ func (handler handler) SearchNotes(ctx *cli.Context) error {
 			end := handler.nowSupplier()
 			start := end.AddDate(0, 0, -ageDays)
 
-			searchFilters.DateRange = &utils.DateRange{
+			searchFilters.DateRange = &models.DateRange{
 				From: start,
 				To:   end,
 			}
@@ -140,11 +136,9 @@ func (handler handler) DeleteNote(ctx *cli.Context) error {
 
 	// Prompt the user for confirmation.
 	// Remove no-confirm, replace with dependency injected UserInput.
-	if !ctx.Bool(FlagNoConfirm) {
-		if ok := handler.makeUserConfirmAction("This will delete 1 note, are you sure?"); !ok {
-			fmt.Println("cancelled")
-			return nil
-		}
+	if ok := handler.makeUserConfirmAction("This will delete 1 note, are you sure?"); !ok {
+		fmt.Println("cancelled")
+		return nil
 	}
 
 	if err := handler.repository.DeleteNote(noteId); err != nil {
@@ -170,7 +164,7 @@ func (handler handler) EditNote(ctx *cli.Context) error {
 
 	note, err := handler.repository.GetNote(noteId)
 	if err != nil {
-		if err == data.ErrNoteNotFound {
+		if err == repository.ErrNoteNotFound {
 			return ErrNoteNotFound
 		}
 

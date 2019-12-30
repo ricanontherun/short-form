@@ -1,8 +1,8 @@
-package handler
+package command
 
 import (
 	"fmt"
-	"github.com/ricanontherun/short-form/data"
+	"github.com/ricanontherun/short-form/models"
 	"github.com/ricanontherun/short-form/utils"
 	"github.com/urfave/cli/v2"
 	"strings"
@@ -25,12 +25,12 @@ func getPrintOptionsFromContext(ctx *cli.Context) printOptions {
 	}
 }
 
-func (handler *handler) promptUser(message string) string {
+func (handler handler) promptUser(message string) string {
 	fmt.Print(message)
 	return strings.TrimSpace(strings.ToLower(handler.userInput.GetString()))
 }
 
-func (handler *handler) makeUserConfirmAction(message string) bool {
+func (handler handler) makeUserConfirmAction(message string) bool {
 	return utils.InArray(handler.promptUser(message+" [y/n]: "), []string{
 		"yes",
 		"y",
@@ -63,14 +63,14 @@ func cleanTagsFromString(tagString string) []string {
 	return tags.Entries()
 }
 
-func getSearchFiltersFromContext(c *cli.Context) data.Filters {
-	return data.Filters{
+func getSearchFiltersFromContext(c *cli.Context) models.SearchFilters {
+	return models.SearchFilters{
 		Tags:    getTagsFromContext(c),
 		Content: strings.TrimSpace(c.String(FlagContent)),
 	}
 }
 
-func (handler handler) printNotes(notes []data.Note, options printOptions) {
+func (handler handler) printNotes(notes []models.Note, options printOptions) {
 	noteCount := len(notes)
 
 	if noteCount <= 0 {
@@ -92,7 +92,7 @@ func (handler handler) printNotes(notes []data.Note, options printOptions) {
 	}
 }
 
-func (handler handler) printNote(note data.Note, options printOptions) {
+func (handler handler) printNote(note models.Note, options printOptions) {
 	bits := make([]string, 0, 4)
 
 	bits = append(bits, note.Timestamp.Format("January 02, 2006 03:04 PM"))

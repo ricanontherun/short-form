@@ -1,9 +1,10 @@
-package data
+package repository
 
 import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/ricanontherun/short-form/models"
 	"strings"
 )
 
@@ -22,7 +23,7 @@ func NewSqlRepository(db *sql.DB) (Repository, error) {
 	return repository, nil
 }
 
-func buildSearchQueryFromContext(ctx Filters) string {
+func buildSearchQueryFromContext(ctx models.SearchFilters) string {
 	var where []string
 
 	if ctx.DateRange != nil {
@@ -68,7 +69,7 @@ func makeInsertValuesForTags(noteId string, tags []string) string {
 	return strings.Join(inserts, ",")
 }
 
-func (repository sqlRepository) WriteNote(note Note) error {
+func (repository sqlRepository) WriteNote(note models.Note) error {
 	return repository.executeWithinTransaction(func(tx *sql.Tx) error {
 		if err := repository.writeNote(tx, note); err != nil {
 			return err
@@ -84,7 +85,7 @@ func (repository sqlRepository) WriteNote(note Note) error {
 	})
 }
 
-func (repository sqlRepository) writeNote(tx *sql.Tx, note Note) error {
+func (repository sqlRepository) writeNote(tx *sql.Tx, note models.Note) error {
 	noteInsertStatement, err := tx.Prepare(SQLInsertNote)
 	if err != nil {
 		return err
@@ -98,7 +99,7 @@ func (repository sqlRepository) writeNote(tx *sql.Tx, note Note) error {
 	return nil
 }
 
-func (repository sqlRepository) TagNote(note Note, tags []string) error {
+func (repository sqlRepository) TagNote(note models.Note, tags []string) error {
 	return repository.executeWithinTransaction(func(tx *sql.Tx) error {
 		if err := repository.deleteNoteTags(tx, note.ID); err != nil {
 			return err
@@ -144,7 +145,7 @@ func (repository sqlRepository) executeWithinTransaction(callback func(*sql.Tx) 
 	}
 }
 
-func (repository sqlRepository) SearchNotes(ctx Filters) ([]Note, error) {
+func (repository sqlRepository) SearchNotes(ctx models.SearchFilters) ([]models.Note, error) {
 	stmt, err := repository.conn.Prepare(buildSearchQueryFromContext(ctx))
 	if err != nil {
 		return nil, err
@@ -156,9 +157,9 @@ func (repository sqlRepository) SearchNotes(ctx Filters) ([]Note, error) {
 		return nil, err
 	}
 
-	var notes []Note
+	var notes []models.Note
 	for rs.Next() {
-		var note Note
+		var note models.Note
 		var tagString string
 
 		if err := rs.Scan(&note.ID, &note.Content, &tagString, &note.Timestamp); err != nil {
@@ -243,11 +244,11 @@ func (repository sqlRepository) UpdateNoteContent(noteId string, content string)
 }
 
 // Get a single note from the database.
-func (repository sqlRepository) GetNote(noteId string) (*Note, error) {
+func (repository sqlRepository) GetNote(noteId string) (*models.Note, error) {
 	if stmt, err := repository.conn.Prepare(SQLGetNote); err != nil {
 		return nil, err
 	} else {
-		var note Note
+		var note models.Note
 
 		record := stmt.QueryRow(noteId)
 		err := record.Scan(&note.ID, &note.Timestamp, &note.Content)
@@ -263,7 +264,7 @@ func (repository sqlRepository) GetNote(noteId string) (*Note, error) {
 	}
 }
 
-func (repository sqlRepository) UpdateNote(note Note) error {
+func (repository sqlRepository) UpdateNote(note models.Note) error {
 	if stmt, err := repository.conn.Prepare(SqlUpdateNote); err != nil {
 		return err
 	} else {

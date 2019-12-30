@@ -1,11 +1,11 @@
 // These tests assert that the handler can correctly process user CLI input.
-package handler_test
+package command_test
 
 import (
 	"flag"
-	"github.com/ricanontherun/short-form/data"
-	"github.com/ricanontherun/short-form/handler"
-	"github.com/ricanontherun/short-form/utils"
+	"github.com/ricanontherun/short-form/command"
+	"github.com/ricanontherun/short-form/models"
+	"github.com/ricanontherun/short-form/repository"
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -33,20 +33,20 @@ func TestHandler_WriteNote(t *testing.T) {
 	tests := []struct {
 		inputTags    string
 		inputArgs    []string
-		expectedNote data.Note
+		expectedNote models.Note
 		expectedErr  error
 	}{
 		// Missing content
 		{
 			inputArgs:   []string{""},
 			inputTags:   "one,two",
-			expectedErr: handler.ErrEmptyContent,
+			expectedErr: command.ErrEmptyContent,
 		},
 
 		// Tags aren't required.
 		{
 			inputArgs: []string{"tags", "aren't", "required"},
-			expectedNote: data.Note{
+			expectedNote: models.Note{
 				Tags:    []string{},
 				Content: "tags aren't required",
 			},
@@ -55,7 +55,7 @@ func TestHandler_WriteNote(t *testing.T) {
 		{
 			inputTags: "  git,   CLI  	",
 			inputArgs: []string{"This", "is", "THE", "CONTENT"},
-			expectedNote: data.Note{
+			expectedNote: models.Note{
 				Tags:    []string{"git", "CLI"},
 				Content: "This is THE CONTENT",
 			},
@@ -69,19 +69,19 @@ func TestHandler_WriteNote(t *testing.T) {
 
 		context := createAppContext(flags, test.inputArgs)
 
-		repository := data.NewMockRepository()
-		repository.On("WriteNote", mock.Anything).Return(nil)
+		r := repository.NewMockRepository()
+		r.On("WriteNote", mock.Anything).Return(nil)
 
-		h := handler.NewHandler(&repository)
+		h := command.NewHandler(&r)
 
 		err := h.WriteNote(context)
 		if test.expectedErr != nil {
-			repository.AssertNotCalled(t, "WriteNote", mock.Anything)
+			r.AssertNotCalled(t, "WriteNote", mock.Anything)
 
 			assert.EqualValues(t, test.expectedErr, err)
 		} else {
-			repository.AssertNumberOfCalls(t, "WriteNote", 1)
-			noteArgument := repository.Calls[0].Arguments.Get(0).(data.Note)
+			r.AssertNumberOfCalls(t, "WriteNote", 1)
+			noteArgument := r.Calls[0].Arguments.Get(0).(models.Note)
 
 			sort.Strings(noteArgument.Tags)
 			sort.Strings(test.expectedNote.Tags)
@@ -102,7 +102,7 @@ func TestHandler_SearchToday(t *testing.T) {
 		inputContent      string
 		expectedTags      []string
 		expectedContent   string
-		expectedDateRange utils.DateRange
+		expectedDateRange models.DateRange
 	}{
 		// No input
 		{
@@ -110,7 +110,7 @@ func TestHandler_SearchToday(t *testing.T) {
 			inputTags:         "",
 			expectedTags:      []string{},
 			expectedContent:   "",
-			expectedDateRange: utils.GetRangeToday(now),
+			expectedDateRange: models.GetRangeToday(now),
 		},
 
 		// Intentionally space padded input
@@ -119,7 +119,7 @@ func TestHandler_SearchToday(t *testing.T) {
 			inputTags:         "    git,    cli   ",
 			expectedTags:      []string{"git", "cli"},
 			expectedContent:   "rebase",
-			expectedDateRange: utils.GetRangeToday(now),
+			expectedDateRange: models.GetRangeToday(now),
 		},
 	}
 
@@ -130,9 +130,9 @@ func TestHandler_SearchToday(t *testing.T) {
 		}
 
 		context := createAppContext(flags, []string{})
-		repository := data.NewMockRepository()
-		repository.On("SearchNotes", mock.Anything).Return(nil)
-		h := handler.NewHandler(&repository)
+		r := repository.NewMockRepository()
+		r.On("SearchNotes", mock.Anything).Return(nil)
+		h := command.NewHandler(&r)
 
 		// When
 		if err := h.SearchToday(context); err != nil {
@@ -140,10 +140,10 @@ func TestHandler_SearchToday(t *testing.T) {
 		}
 
 		// Then
-		repository.AssertNumberOfCalls(t, "SearchNotes", 1)
+		r.AssertNumberOfCalls(t, "SearchNotes", 1)
 
 		sort.Strings(test.expectedTags)
-		filters := repository.Calls[0].Arguments.Get(0).(data.Filters)
+		filters := r.Calls[0].Arguments.Get(0).(models.SearchFilters)
 		sort.Strings(filters.Tags)
 		assert.EqualValues(t, test.expectedTags, filters.Tags)
 		assert.EqualValues(t, test.expectedContent, filters.Content)
@@ -158,7 +158,7 @@ func TestHandler_SearchYesterday(t *testing.T) {
 		inputContent      string
 		expectedTags      []string
 		expectedContent   string
-		expectedDateRange utils.DateRange
+		expectedDateRange models.DateRange
 	}{
 		// No input
 		{
@@ -166,7 +166,7 @@ func TestHandler_SearchYesterday(t *testing.T) {
 			inputTags:         "",
 			expectedTags:      []string{},
 			expectedContent:   "",
-			expectedDateRange: utils.GetRangeYesterday(now),
+			expectedDateRange: models.GetRangeYesterday(now),
 		},
 
 		// Intentionally space padded input
@@ -175,7 +175,7 @@ func TestHandler_SearchYesterday(t *testing.T) {
 			inputTags:         "    git,    cli   ",
 			expectedTags:      []string{"git", "cli"},
 			expectedContent:   "rebase",
-			expectedDateRange: utils.GetRangeYesterday(now),
+			expectedDateRange: models.GetRangeYesterday(now),
 		},
 	}
 
@@ -186,9 +186,9 @@ func TestHandler_SearchYesterday(t *testing.T) {
 		}
 
 		context := createAppContext(flags, []string{})
-		repository := data.NewMockRepository()
-		repository.On("SearchNotes", mock.Anything).Return(nil)
-		h := handler.NewHandler(&repository)
+		r := repository.NewMockRepository()
+		r.On("SearchNotes", mock.Anything).Return(nil)
+		h := command.NewHandler(&r)
 
 		// When
 		if err := h.SearchYesterday(context); err != nil {
@@ -196,9 +196,9 @@ func TestHandler_SearchYesterday(t *testing.T) {
 		}
 
 		// Then
-		repository.AssertNumberOfCalls(t, "SearchNotes", 1)
+		r.AssertNumberOfCalls(t, "SearchNotes", 1)
 
-		filters := repository.Calls[0].Arguments.Get(0).(data.Filters)
+		filters := r.Calls[0].Arguments.Get(0).(models.SearchFilters)
 		sort.Strings(test.expectedTags)
 		sort.Strings(filters.Tags)
 		assert.EqualValues(t, test.expectedTags, filters.Tags)
@@ -217,7 +217,7 @@ func TestHandler_SearchNotes(t *testing.T) {
 
 		expectedTags      []string
 		expectedContent   string
-		expectedDateRange *utils.DateRange
+		expectedDateRange *models.DateRange
 		expectedErr       error
 	}{
 		// No input
@@ -229,20 +229,20 @@ func TestHandler_SearchNotes(t *testing.T) {
 		// Invalid age
 		{
 			inputAge:    "what",
-			expectedErr: handler.ErrInvalidAge,
+			expectedErr: command.ErrInvalidAge,
 		},
 		{
 			inputAge:    "1m",
-			expectedErr: handler.ErrInvalidAge,
+			expectedErr: command.ErrInvalidAge,
 		},
 		{
 			inputAge:    "10",
-			expectedErr: handler.ErrInvalidAge,
+			expectedErr: command.ErrInvalidAge,
 		},
 		{
 			inputAge:     "2d",
 			expectedTags: []string{},
-			expectedDateRange: &utils.DateRange{
+			expectedDateRange: &models.DateRange{
 				From: now.AddDate(0, 0, -2),
 				To:   now,
 			},
@@ -254,7 +254,7 @@ func TestHandler_SearchNotes(t *testing.T) {
 
 			expectedTags:    []string{"git", "CLI", "version-CONTROL"},
 			expectedContent: "REBASE",
-			expectedDateRange: &utils.DateRange{
+			expectedDateRange: &models.DateRange{
 				From: now.AddDate(0, 0, -100),
 				To:   now,
 			},
@@ -270,18 +270,18 @@ func TestHandler_SearchNotes(t *testing.T) {
 
 		context := createAppContext(flags, []string{})
 
-		repository := data.NewMockRepository()
-		repository.On("SearchNotes", mock.Anything).Return(nil)
-		h := handler.NewHandlerFromArguments(&repository, func() time.Time {
+		r := repository.NewMockRepository()
+		r.On("SearchNotes", mock.Anything).Return(nil)
+		h := command.NewHandlerFromArguments(&r, func() time.Time {
 			return now
-		}, handler.NewUserInput())
+		}, command.NewUserInput())
 
 		err := h.SearchNotes(context)
 		if test.expectedErr != nil {
 			assert.EqualValues(t, test.expectedErr, err)
 		} else {
-			repository.AssertNumberOfCalls(t, "SearchNotes", 1)
-			filters := repository.Calls[0].Arguments.Get(0).(data.Filters)
+			r.AssertNumberOfCalls(t, "SearchNotes", 1)
+			filters := r.Calls[0].Arguments.Get(0).(models.SearchFilters)
 
 			sort.Strings(filters.Tags)
 			sort.Strings(test.expectedTags)
@@ -304,26 +304,27 @@ func TestHandler_DeleteNote(t *testing.T) {
 		},
 	}
 
+	input := command.NewMockInput()
+	input.On("GetString", mock.Anything).Return("y")
+
 	for _, test := range tests {
-		var flags = map[string]string{
-			"no-confirm": "true", // >.>
-		}
+		var flags = map[string]string{}
 
 		context := createAppContext(flags, test.inputArgs)
-		repository := data.NewMockRepository()
+		r := repository.NewMockRepository()
 
-		repository.On("GetNote", noteId).Return(&data.Note{
+		r.On("GetNote", noteId).Return(&models.Note{
 			ID: noteId,
 		}, nil)
 
-		repository.On("DeleteNote", noteId).Return(nil)
+		r.On("DeleteNote", noteId).Return(nil)
 
-		h := handler.NewHandler(&repository)
+		h := command.NewHandlerFromArguments(&r, command.DefaultNowSupplier, input)
 		err := h.DeleteNote(context)
 
 		assert.Nil(t, err)
-		repository.AssertNumberOfCalls(t, "GetNote", 1)
-		repository.AssertCalled(t, "DeleteNote", noteId)
+		r.AssertNumberOfCalls(t, "GetNote", 1)
+		r.AssertCalled(t, "DeleteNote", noteId)
 	}
 }
 
@@ -337,25 +338,26 @@ func TestHandler_DeleteNote_Validation(t *testing.T) {
 		// Missing ID
 		{
 			inputArgs:   []string{},
-			expectedErr: handler.ErrMissingNoteId,
+			expectedErr: command.ErrMissingNoteId,
 		},
 
 		// Bad note id.
 		{
 			inputArgs:   []string{invalidNoteId},
-			expectedErr: handler.ErrInvalidNoteId,
+			expectedErr: command.ErrInvalidNoteId,
 		},
 	}
 
+	input := command.NewMockInput()
+	input.On("GetString", mock.Anything).Return("y")
+
 	for _, test := range tests {
-		var flags = map[string]string{
-			"no-confirm": "true", // >.>
-		}
+		var flags = map[string]string{}
 
 		context := createAppContext(flags, test.inputArgs)
-		repository := data.NewMockRepository()
+		r := repository.NewMockRepository()
 
-		h := handler.NewHandler(&repository)
+		h := command.NewHandlerFromArguments(&r, command.DefaultNowSupplier, input)
 		err := h.DeleteNote(context)
 
 		assert.NotNil(t, err)

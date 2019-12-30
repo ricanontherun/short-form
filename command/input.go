@@ -1,4 +1,4 @@
-package handler
+package command
 
 import (
 	"bufio"
@@ -16,6 +16,7 @@ func NewUserInput() UserInput {
 	return userInput{}
 }
 
+// Read a string from stdin, stopping at the first newline.
 func (input userInput) GetString() string {
 	reader := bufio.NewReader(os.Stdin)
 	text, _ := reader.ReadString('\n')
