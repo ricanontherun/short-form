@@ -3,8 +3,10 @@ package main
 import (
 	"fmt"
 	"github.com/ricanontherun/short-form/command"
+	"github.com/ricanontherun/short-form/conf"
 	"github.com/ricanontherun/short-form/database"
 	"github.com/ricanontherun/short-form/repository"
+	"github.com/ricanontherun/short-form/utils"
 	"github.com/urfave/cli/v2"
 	"log"
 	"os"
@@ -29,18 +31,22 @@ func startupError(err error) {
 }
 
 func main() {
+	if err := utils.EnsureFilePath(conf.ResolveDatabaseFilePath()); err != nil {
+		startupError(err)
+	}
+
 	databaseConnection, err := database.NewDatabaseConnection()
 	if err != nil {
 		startupError(err)
 	}
 	defer databaseConnection.Close()
 
-	repository, err := repository.NewSqlRepository(databaseConnection)
+	repo, err := repository.NewSqlRepository(databaseConnection)
 	if err != nil {
 		log.Fatalf("Failed to open database: %s", err.Error())
 	}
 
-	handle := command.NewHandler(repository)
+	handle := command.NewHandler(repo)
 
 	app := cli.App{
 		Name:        "short-form",
