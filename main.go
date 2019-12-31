@@ -27,7 +27,7 @@ func dd(message string) {
 }
 
 func startupError(err error) {
-	dd("Failed to start short-form: " + err.Error())
+	dd("Failed to start sf: " + err.Error())
 }
 
 func main() {
@@ -49,9 +49,9 @@ func main() {
 	handle := command.NewHandler(repo)
 
 	app := cli.App{
-		Name:        "short-form",
+		Name:        "sf",
 		Usage:       "A command-line journal for bite sized thoughts",
-		Description: "short-form is a command-line journal for simple note writing",
+		Description: "sf is a command-line journal for simple note writing",
 		Version:     "1.0.0",
 		Commands: []*cli.Command{
 			{
