@@ -4,20 +4,20 @@ A command line journal for bite sized thoughts.
 
 ## Features
 
-2. Simple, short and concise CLI
-3. Efficient and reliable data storage (backed by sqlite3)
+1. Simple, short and concise CLI
+2. Efficient and reliable data storage (backed by sqlite3)
 
 ## Installation
 
-### Binaries
-Please see the [dist](dist) directory, and find a binary for your platform. TODO: Figure out Windows and Linux binaries.
+### Binaries (Mac only)
+64-bit Mac binaries can be found in [dist/darwin](dist/darwin).
 
 ### From Source
 These instructions require any recent (>= 1.13) version of Golang to be installed. For example, I'm running `go version go1.13.4 darwin/amd64` currently.
 
 1. `go get github.com/ricanontherun/short-form`
 2. `cd $GOPATH/src/github.com/ricanontherun/short-form`
-3. `go build -o sf`
+3. `CGO_ENABLED=1 go build -o sf`
 3. `mv sf /usr/local/bin`
 
 ## Storage
