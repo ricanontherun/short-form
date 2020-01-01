@@ -11,7 +11,6 @@ const (
 	shortFormDirectory = ".sf"
 	dataDirectory      = "data"
 	dataFile           = "data.db"
-	configurationFile  = "config"
 )
 
 var shortFormDirectoryPath string
@@ -34,6 +33,7 @@ func initializePaths() {
 	})
 }
 
+// ResolveDatabaseFilePath returns the absolute path to the user's database file.
 func ResolveDatabaseFilePath() string {
 	initializePaths()
 

@@ -5,6 +5,7 @@ import (
 	"time"
 )
 
+// Main note model.
 type Note struct {
 	ID        string
 	Tags      []string
@@ -12,6 +13,7 @@ type Note struct {
 	Timestamp time.Time
 }
 
+// NewNote creates a note with a given content and tags.
 func NewNote(tags []string, content string) Note {
 	return Note{
 		ID:        uuid.NewV4().String(),
@@ -21,6 +23,7 @@ func NewNote(tags []string, content string) Note {
 	}
 }
 
+// Clone creates a copy of a note.
 func (note Note) Clone() Note {
 	return Note{
 		ID:        note.ID,

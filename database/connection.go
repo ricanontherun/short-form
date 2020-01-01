@@ -6,6 +6,7 @@ import (
 	"github.com/ricanontherun/short-form/conf"
 )
 
+// NewDatabaseConnection creates a new database connection.
 func NewDatabaseConnection() (*sql.DB, error) {
 	db, err := sql.Open("sqlite3", conf.ResolveDatabaseFilePath())
 

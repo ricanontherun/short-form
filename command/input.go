@@ -6,13 +6,13 @@ import (
 	"strings"
 )
 
-type UserInput interface {
+type UserInputController interface {
 	GetString() string
 }
 
 type userInput struct{}
 
-func NewUserInput() UserInput {
+func NewUserInputController() UserInputController {
 	return userInput{}
 }
 

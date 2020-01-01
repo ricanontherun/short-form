@@ -7,7 +7,7 @@ var (
 	ErrFailedToUpdateNote = errors.New("failed to update note")
 )
 
-const SQLInitializeDatabase = `
+const sqlInitializeDatabase = `
 CREATE TABLE IF NOT EXISTS notes
 (
 	id CHAR(16) not null
@@ -31,14 +31,14 @@ CREATE INDEX IF NOT EXISTS note_tags_note_id_index ON note_tags (note_id);
 CREATE INDEX IF NOT EXISTS note_tags_tag_index ON note_tags (tag);
 `
 
-const SQLInsertNote = `
+const sqlInsertNote = `
 INSERT INTO notes (id, timestamp, content)
 VALUES (?, ?, ?)
 `
 
-const SQLInsertTags = `INSERT INTO note_tags (note_id, tag) VALUES`
+const sqlInsertNoteTags = `INSERT INTO note_tags (note_id, tag) VALUES`
 
-const SQLSearchForNotes = `
+const sqlSearchNotes = `
 SELECT notes.id, notes.content, COALESCE(GROUP_CONCAT(DISTINCT note_tags.tag), "") as tags, notes.timestamp
 FROM notes
 LEFT JOIN note_tags
@@ -51,21 +51,21 @@ GROUP BY notes.id
 ORDER BY notes.timestamp
 `
 
-const SQLUpdateNote = `UPDATE notes SET content=? WHERE id=?`
+const sqlUpdateNote = `UPDATE notes SET content=? WHERE id=?`
 
-const SQLDeleteNote = "DELETE FROM notes WHERE notes.id = ?"
+const sqlDeleteNote = "DELETE FROM notes WHERE notes.id = ?"
 
-const SQLDeleteNoteTags = "DELETE FROM note_tags WHERE note_tags.note_id = ?"
+const sqlDeleteNoteTags = "DELETE FROM note_tags WHERE note_tags.note_id = ?"
 
-const SQLGetNoteTags = `SELECT GROUP_CONCAT(DISTINCT tag) as tags FROM note_tags WHERE note_id = ? LIMIT 1`
+const sqlGetNoteTags = `SELECT GROUP_CONCAT(DISTINCT tag) as tags FROM note_tags WHERE note_id = ? LIMIT 1`
 
-const SQLGetNote = `
+const sqlGetNote = `
 SELECT notes.id, timestamp, content
 FROM notes
 WHERE notes.id = ?
 `
 
-const SqlUpdateNote = `
+const sqlUpdateNoteContent = `
 UPDATE notes
 SET
 	content = ?

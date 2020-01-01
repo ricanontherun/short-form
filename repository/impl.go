@@ -56,7 +56,7 @@ func buildSearchQueryFromContext(ctx models.SearchFilters) string {
 		whereClauseString = "WHERE " + strings.Join(where, "AND")
 	}
 
-	return fmt.Sprintf(SQLSearchForNotes, whereClauseString)
+	return fmt.Sprintf(sqlSearchNotes, whereClauseString)
 }
 
 func makeInsertValuesForTags(noteId string, tags []string) string {
@@ -86,7 +86,7 @@ func (repository sqlRepository) WriteNote(note models.Note) error {
 }
 
 func (repository sqlRepository) writeNote(tx *sql.Tx, note models.Note) error {
-	noteInsertStatement, err := tx.Prepare(SQLInsertNote)
+	noteInsertStatement, err := tx.Prepare(sqlInsertNote)
 	if err != nil {
 		return err
 	}
@@ -114,7 +114,7 @@ func (repository sqlRepository) TagNote(note models.Note, tags []string) error {
 }
 
 func (repository sqlRepository) writeNoteTags(tx *sql.Tx, noteId string, tags []string) error {
-	sqlString := SQLInsertTags + " " + makeInsertValuesForTags(noteId, tags)
+	sqlString := sqlInsertNoteTags + " " + makeInsertValuesForTags(noteId, tags)
 	tagInsertPreparedStatement, err := tx.Prepare(sqlString)
 
 	if err != nil {
@@ -167,7 +167,7 @@ func (repository sqlRepository) SearchNotes(ctx models.SearchFilters) ([]models.
 		}
 
 		if len(tagString) > 0 {
-			if stmt, err := repository.conn.Prepare(SQLGetNoteTags); err != nil {
+			if stmt, err := repository.conn.Prepare(sqlGetNoteTags); err != nil {
 				return nil, err
 			} else {
 				defer stmt.Close()
@@ -190,7 +190,7 @@ func (repository sqlRepository) SearchNotes(ctx models.SearchFilters) ([]models.
 
 func (repository sqlRepository) DeleteNote(noteId string) error {
 	return repository.executeWithinTransaction(func(tx *sql.Tx) error {
-		stmt, err := tx.Prepare(SQLDeleteNote)
+		stmt, err := tx.Prepare(sqlDeleteNote)
 		if err != nil {
 			return err
 		}
@@ -214,7 +214,7 @@ func (repository sqlRepository) DeleteNote(noteId string) error {
 }
 
 func (repository sqlRepository) deleteNoteTags(tx *sql.Tx, noteId string) error {
-	if stmt, err := tx.Prepare(SQLDeleteNoteTags); err != nil {
+	if stmt, err := tx.Prepare(sqlDeleteNoteTags); err != nil {
 		return err
 	} else {
 		defer stmt.Close()
@@ -228,7 +228,7 @@ func (repository sqlRepository) deleteNoteTags(tx *sql.Tx, noteId string) error 
 
 // Update a note's content
 func (repository sqlRepository) UpdateNoteContent(noteId string, content string) error {
-	if stmt, err := repository.conn.Prepare(SQLUpdateNote); err != nil {
+	if stmt, err := repository.conn.Prepare(sqlUpdateNote); err != nil {
 		return err
 	} else {
 		if updateResult, err := stmt.Exec(content, noteId); err != nil {
@@ -245,7 +245,7 @@ func (repository sqlRepository) UpdateNoteContent(noteId string, content string)
 
 // Get a single note from the database.
 func (repository sqlRepository) GetNote(noteId string) (*models.Note, error) {
-	if stmt, err := repository.conn.Prepare(SQLGetNote); err != nil {
+	if stmt, err := repository.conn.Prepare(sqlGetNote); err != nil {
 		return nil, err
 	} else {
 		var note models.Note
@@ -265,7 +265,7 @@ func (repository sqlRepository) GetNote(noteId string) (*models.Note, error) {
 }
 
 func (repository sqlRepository) UpdateNote(note models.Note) error {
-	if stmt, err := repository.conn.Prepare(SqlUpdateNote); err != nil {
+	if stmt, err := repository.conn.Prepare(sqlUpdateNoteContent); err != nil {
 		return err
 	} else {
 		if results, err := stmt.Exec(note.Content, note.ID); err != nil {
@@ -282,7 +282,7 @@ func (repository sqlRepository) UpdateNote(note models.Note) error {
 
 // Initialize the database structure.
 func (repository sqlRepository) initialize() error {
-	if _, err := repository.conn.Exec(SQLInitializeDatabase); err != nil {
+	if _, err := repository.conn.Exec(sqlInitializeDatabase); err != nil {
 		return err
 	}
 

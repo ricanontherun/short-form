@@ -32,13 +32,13 @@ func (repository *mockRepository) GetNote(noteId string) (*models.Note, error) {
 	return nil, nil
 }
 
-func (mockRepository) UpdateNote(note models.Note) error {
+func (repository *mockRepository) UpdateNote(note models.Note) error {
 	return nil
 }
 
-func (mockRepository) TagNote(note models.Note, tags []string) error {
+func (repository *mockRepository) TagNote(note models.Note, tags []string) error {
 	return nil
 }
 
-func (mockRepository) Close() {
+func (repository *mockRepository) Close() {
 }

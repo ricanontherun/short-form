@@ -46,7 +46,7 @@ func main() {
 		log.Fatalf("Failed to open database: %s", err.Error())
 	}
 
-	handle := command.NewHandler(repo)
+	handle := command.NewHandlerBuilder(repo).Build()
 
 	app := cli.App{
 		Name:        "sf",

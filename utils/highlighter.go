@@ -11,6 +11,7 @@ type highlight struct {
 	Right     string
 }
 
+// HighlightString highlights (using terminal codes) the occurrences of highlight in original.
 func HighlightString(original string, highlight string) string {
 	highlights := parseHighlights(original, highlight)
 
@@ -28,6 +29,7 @@ func HighlightString(original string, highlight string) string {
 	return original
 }
 
+// TODO: This could be much more efficient.
 func parseHighlights(highlightString string, original string) []highlight {
 	var highlights []highlight
 

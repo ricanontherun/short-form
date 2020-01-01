@@ -11,9 +11,8 @@ var (
 )
 
 const (
-	FlagTags      = "tags"
-	FlagAge       = "age"
-	FlagContent   = "content"
-	FlagDetailed  = "detailed"
-	FlagNoConfirm = "no-confirm"
+	FlagTags     = "tags"
+	FlagAge      = "age"
+	FlagContent  = "content"
+	FlagDetailed = "detailed"
 )

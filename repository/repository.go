@@ -2,6 +2,7 @@ package repository
 
 import "github.com/ricanontherun/short-form/models"
 
+// Repository Interface.
 type Repository interface {
 	// Write a new note to the database
 	WriteNote(note models.Note) error

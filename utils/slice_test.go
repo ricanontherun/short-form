@@ -22,7 +22,7 @@ func TestInArray(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		if InArray(test.elem, array) != test.shouldExist {
+		if SliceContainsElement(test.elem, array) != test.shouldExist {
 			if test.shouldExist {
 				t.Fatalf("'%s' should exist in the array, but it does not", test.elem)
 			} else {

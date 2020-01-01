@@ -13,7 +13,7 @@ A command line journal for bite sized thoughts.
 64-bit Mac binaries can be found in [dist/darwin](dist/darwin).
 
 ### From Source
-These instructions require any recent (>= 1.13) version of Golang to be installed. For example, I'm running `go version go1.13.4 darwin/amd64` currently.
+These instructions require any recent (>= 1.13) version of Golang to be installed, alongside a compatible compiler. For example, I'm running `go version go1.13.4 darwin/amd64` currently.
 
 1. `go get github.com/ricanontherun/short-form`
 2. `cd $GOPATH/src/github.com/ricanontherun/short-form`
@@ -21,7 +21,7 @@ These instructions require any recent (>= 1.13) version of Golang to be installe
 3. `mv sf /usr/local/bin`
 
 ## Storage
-Notes are stored on disk, in `~/.sf/data`. The underlying storage engine is provided via [https://github.com/mattn/go-sqlite3](https://github.com/mattn/go-sqlite3).
+Note data is stored on disk, in `~/.sf/data`. The underlying storage engine is provided via [https://github.com/mattn/go-sqlite3](https://github.com/mattn/go-sqlite3).
 
 ## Usage
 

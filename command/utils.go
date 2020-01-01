@@ -27,11 +27,11 @@ func getPrintOptionsFromContext(ctx *cli.Context) printOptions {
 
 func (handler handler) promptUser(message string) string {
 	fmt.Print(message)
-	return strings.TrimSpace(strings.ToLower(handler.userInput.GetString()))
+	return strings.TrimSpace(strings.ToLower(handler.inputController.GetString()))
 }
 
 func (handler handler) makeUserConfirmAction(message string) bool {
-	return utils.InArray(handler.promptUser(message+" [y/n]: "), []string{
+	return utils.SliceContainsElement(handler.promptUser(message+" [y/n]: "), []string{
 		"yes",
 		"y",
 	})

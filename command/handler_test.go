@@ -72,7 +72,7 @@ func TestHandler_WriteNote(t *testing.T) {
 		r := repository.NewMockRepository()
 		r.On("WriteNote", mock.Anything).Return(nil)
 
-		h := command.NewHandler(&r)
+		h := command.NewHandlerBuilder(&r).Build()
 
 		err := h.WriteNote(context)
 		if test.expectedErr != nil {
@@ -132,7 +132,7 @@ func TestHandler_SearchToday(t *testing.T) {
 		context := createAppContext(flags, []string{})
 		r := repository.NewMockRepository()
 		r.On("SearchNotes", mock.Anything).Return(nil)
-		h := command.NewHandler(&r)
+		h := command.NewHandlerBuilder(&r).Build()
 
 		// When
 		if err := h.SearchToday(context); err != nil {
@@ -188,7 +188,8 @@ func TestHandler_SearchYesterday(t *testing.T) {
 		context := createAppContext(flags, []string{})
 		r := repository.NewMockRepository()
 		r.On("SearchNotes", mock.Anything).Return(nil)
-		h := command.NewHandler(&r)
+
+		h := command.NewHandlerBuilder(&r).Build()
 
 		// When
 		if err := h.SearchYesterday(context); err != nil {
@@ -272,9 +273,9 @@ func TestHandler_SearchNotes(t *testing.T) {
 
 		r := repository.NewMockRepository()
 		r.On("SearchNotes", mock.Anything).Return(nil)
-		h := command.NewHandlerFromArguments(&r, func() time.Time {
+		h := command.NewHandlerBuilder(&r).WithNowSupplier(func() time.Time {
 			return now
-		}, command.NewUserInput())
+		}).Build()
 
 		err := h.SearchNotes(context)
 		if test.expectedErr != nil {
@@ -319,7 +320,7 @@ func TestHandler_DeleteNote(t *testing.T) {
 
 		r.On("DeleteNote", noteId).Return(nil)
 
-		h := command.NewHandlerFromArguments(&r, command.DefaultNowSupplier, input)
+		h := command.NewHandlerBuilder(&r).WithUserInputController(input).Build()
 		err := h.DeleteNote(context)
 
 		assert.Nil(t, err)
@@ -357,7 +358,7 @@ func TestHandler_DeleteNote_Validation(t *testing.T) {
 		context := createAppContext(flags, test.inputArgs)
 		r := repository.NewMockRepository()
 
-		h := command.NewHandlerFromArguments(&r, command.DefaultNowSupplier, input)
+		h := command.NewHandlerBuilder(&r).WithUserInputController(input).Build()
 		err := h.DeleteNote(context)
 
 		assert.NotNil(t, err)

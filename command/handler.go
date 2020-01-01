@@ -15,25 +15,53 @@ import (
 type nowSupplier func() time.Time
 
 type handler struct {
-	repository  repository.Repository
-	nowSupplier nowSupplier
-	userInput   UserInput
+	repository      repository.Repository
+	nowSupplier     nowSupplier
+	inputController UserInputController
+}
+
+type HandlerBuilder struct {
+	repository      repository.Repository
+	nowSupplier     nowSupplier
+	inputController UserInputController
+}
+
+func NewHandlerBuilder(repository repository.Repository) *HandlerBuilder {
+	return &HandlerBuilder{repository: repository}
+}
+
+func (builder *HandlerBuilder) WithNowSupplier(supplier nowSupplier) *HandlerBuilder {
+	builder.nowSupplier = supplier
+	return builder
+}
+
+func (builder *HandlerBuilder) WithUserInputController(inputController UserInputController) *HandlerBuilder {
+	builder.inputController = inputController
+	return builder
+}
+
+func (builder *HandlerBuilder) Build() handler {
+	handler := handler{}
+
+	handler.repository = builder.repository
+
+	if builder.nowSupplier != nil {
+		handler.nowSupplier = builder.nowSupplier
+	} else {
+		handler.nowSupplier = DefaultNowSupplier
+	}
+
+	if builder.inputController != nil {
+		handler.inputController = builder.inputController
+	} else {
+		handler.inputController = NewUserInputController()
+	}
+
+	return handler
 }
 
 func DefaultNowSupplier() time.Time {
 	return time.Now()
-}
-
-// Create a new handler.
-// A handler serves as the entry point to the application, fulfilling user commands.
-func NewHandler(repository repository.Repository) handler {
-	return NewHandlerFromArguments(repository, DefaultNowSupplier, NewUserInput())
-}
-
-// Create a handler with a custom nowSupplier
-// Useful for testing date range parsing.
-func NewHandlerFromArguments(repository repository.Repository, nowSupplier nowSupplier, input UserInput) handler {
-	return handler{repository, nowSupplier, input}
 }
 
 func (handler handler) WriteNote(ctx *cli.Context) error {
@@ -135,7 +163,7 @@ func (handler handler) DeleteNote(ctx *cli.Context) error {
 	}
 
 	// Prompt the user for confirmation.
-	// Remove no-confirm, replace with dependency injected UserInput.
+	// Remove no-confirm, replace with dependency injected UserInputController.
 	if ok := handler.makeUserConfirmAction("This will delete 1 note, are you sure?"); !ok {
 		fmt.Println("cancelled")
 		return nil
