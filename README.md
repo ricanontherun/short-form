@@ -1,6 +1,6 @@
 # short-form
 
-A command line journal for bite sized thoughts.
+A command line journal for bite sized thoughts. Started as a project for practicing Golang, turned into something kinda useful!
 
 ## Features
 
