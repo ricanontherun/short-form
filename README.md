@@ -28,23 +28,20 @@ Note data is stored on disk, in `~/.sf/data`. The underlying storage engine is p
 Display help
 `sf --help`
 #### Writing notes
-Each note's unique ID is printed after successfully writing. This can be used to delete a note later.
 ```
-➜ sf write Hello, this is a note.
-46164c5c-37a7-4149-a64a-b5c2420b78e2
+➜ sf w Hello, this is a note.
 ```
 
 You can also tag notes using a comma,separated,list of tags.
 ```
-➜ sf write -t git,cli git rebase: git rebase COMMIT
-46164c5c-37a7-4149-a64a-b5c2420b78e1
+➜ sf w -t git,cli git rebase: git rebase COMMIT
 ```
 
 #### Searching Notes
 
 Search by tag
 ```
-➜ sf search -t git
+➜ sf s -t git
 2 note(s) found
 
 December 08, 2019 02:39 PM | git
@@ -56,7 +53,7 @@ git rebase (interactive): git rebase -i COMMIT
 
 Search by note content
 ```
-➜ sf search -c rebase
+➜ sf s -c rebase
 1 note(s) found
 
 December 08, 2019 02:39 PM | git, cli
@@ -64,7 +61,7 @@ git rebase: git rebase COMMIT
 ```
 
 ```
-➜ sf search today
+➜ sf s today
 4 note(s) found
 
 December 08, 2019 02:30 PM
@@ -79,7 +76,7 @@ git rebase (interactive): git rebase -i COMMIT
 
 Display note details.
 ```
-➜ sf search -d -t top-secret 
+➜ sf s -d -t top-secret 
 1 note(s) found
 
 December 08, 2019 02:35 PM | b0e67f71-e629-4f5e-a8c5-06a2fa1fe473 | top-secret
@@ -88,7 +85,7 @@ This is a secret note
 
 #### Delete a note
 ```
-➜ sf delete 365c2ed4-ae92-4a34-88e3-f9edfac1aa19
+➜ sf d 365c2ed4-ae92-4a34-88e3-f9edfac1aa19
 ```
 
 ### Shorthand

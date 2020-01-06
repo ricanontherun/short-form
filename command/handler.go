@@ -76,8 +76,6 @@ func (handler handler) WriteNote(ctx *cli.Context) error {
 		return err
 	}
 
-	fmt.Println(note.ID)
-
 	return nil
 }
 
