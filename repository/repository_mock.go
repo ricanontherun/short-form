@@ -27,7 +27,12 @@ func (repository *mockRepository) DeleteNote(noteId string) error {
 	return repository.Called(noteId).Error(0)
 }
 
-func (repository *mockRepository) GetNote(noteId string) (*models.Note, error) {
+func (repository *mockRepository) LookupNote(noteId string) (*models.Note, error) {
+	repository.Called(noteId)
+	return nil, nil
+}
+
+func (repository *mockRepository) LookupNoteWithTags(noteId string) (*models.Note, error) {
 	repository.Called(noteId)
 	return nil, nil
 }

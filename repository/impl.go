@@ -167,18 +167,10 @@ func (repository sqlRepository) SearchNotes(ctx models.SearchFilters) ([]models.
 		}
 
 		if len(tagString) > 0 {
-			if stmt, err := repository.conn.Prepare(sqlGetNoteTags); err != nil {
+			if tags, err := repository.getNoteTags(note.ID); err != nil {
 				return nil, err
 			} else {
-				defer stmt.Close()
-
-				var tagString string
-
-				if err := stmt.QueryRow(note.ID).Scan(&tagString); err != nil {
-					return nil, err
-				} else {
-					note.Tags = strings.Split(tagString, ",")
-				}
+				note.Tags = tags
 			}
 		}
 
@@ -186,6 +178,21 @@ func (repository sqlRepository) SearchNotes(ctx models.SearchFilters) ([]models.
 	}
 
 	return notes, nil
+}
+
+func (repository sqlRepository) getNoteTags(noteId string) ([]string, error) {
+	if stmt, err := repository.conn.Prepare(sqlGetNoteTags); err != nil {
+		return nil, err
+	} else {
+		defer stmt.Close()
+
+		var tagString string
+		if err := stmt.QueryRow(noteId).Scan(&tagString); err != nil {
+			return nil, err
+		} else {
+			return strings.Split(tagString, ","), nil
+		}
+	}
 }
 
 func (repository sqlRepository) DeleteNote(noteId string) error {
@@ -244,7 +251,15 @@ func (repository sqlRepository) UpdateNoteContent(noteId string, content string)
 }
 
 // Get a single note from the database.
-func (repository sqlRepository) GetNote(noteId string) (*models.Note, error) {
+func (repository sqlRepository) LookupNote(noteId string) (*models.Note, error) {
+	return repository.getNote(noteId, false)
+}
+
+func (repository sqlRepository) LookupNoteWithTags(noteId string) (*models.Note, error) {
+	return repository.getNote(noteId, true)
+}
+
+func (repository sqlRepository) getNote(noteId string, withTags bool) (*models.Note, error) {
 	if stmt, err := repository.conn.Prepare(sqlGetNote); err != nil {
 		return nil, err
 	} else {
@@ -258,6 +273,14 @@ func (repository sqlRepository) GetNote(noteId string) (*models.Note, error) {
 			}
 
 			return nil, err
+		}
+
+		if withTags {
+			if tags, err := repository.getNoteTags(noteId); err != nil {
+				return nil, err
+			} else {
+				note.Tags = tags
+			}
 		}
 
 		return &note, nil

@@ -22,7 +22,7 @@ var (
 		Value:   "",
 	}
 
-	appVersion = "1.1.1"
+	appVersion = "1.2.0"
 )
 
 var searchFlags = []cli.Flag{

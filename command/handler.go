@@ -117,7 +117,6 @@ func (handler handler) SearchYesterday(ctx *cli.Context) error {
 func (handler handler) SearchNotes(ctx *cli.Context) error {
 	searchFilters := getSearchFiltersFromContext(ctx)
 
-	// Check for age.
 	age := strings.ToLower(ctx.String(FlagAge))
 	if len(age) > 0 {
 		validAge := regexp.MustCompile(`^\d+d$`)
@@ -150,18 +149,14 @@ func (handler handler) DeleteNote(ctx *cli.Context) error {
 		return ErrMissingNoteId
 	}
 
-	// Validate it's a V4 UUID
 	if _, err := uuid.FromString(noteId); err != nil {
 		return ErrInvalidNoteId
 	}
 
-	// Make sure the note exists.
-	if _, err := handler.repository.GetNote(noteId); err != nil {
+	if _, err := handler.repository.LookupNote(noteId); err != nil {
 		return err
 	}
 
-	// Prompt the user for confirmation.
-	// Remove no-confirm, replace with dependency injected UserInputController.
 	if ok := handler.makeUserConfirmAction("This will delete 1 note, are you sure?"); !ok {
 		fmt.Println("cancelled")
 		return nil
@@ -177,7 +172,6 @@ func (handler handler) DeleteNote(ctx *cli.Context) error {
 }
 
 func (handler handler) EditNote(ctx *cli.Context) error {
-	// Get the noteId from context.
 	noteId := ctx.Args().First()
 
 	if len(noteId) == 0 {
@@ -188,7 +182,7 @@ func (handler handler) EditNote(ctx *cli.Context) error {
 		return ErrInvalidNoteId
 	}
 
-	note, err := handler.repository.GetNote(noteId)
+	note, err := handler.repository.LookupNoteWithTags(noteId)
 	if err != nil {
 		if err == repository.ErrNoteNotFound {
 			return ErrNoteNotFound
@@ -197,22 +191,30 @@ func (handler handler) EditNote(ctx *cli.Context) error {
 		return err
 	}
 
-	changed := false
+	contentChanged := false
 	tagsChanged := false
 
-	newContent := handler.promptUser("New Content: ")
-	if len(newContent) != 0 {
-		changed = true
-		note.Content = newContent
+	if handler.makeUserConfirmAction("update content?") {
+		newContent := handler.promptUser("new content: ")
+
+		if len(newContent) != 0 {
+			contentChanged = true
+			note.Content = newContent
+		}
 	}
 
-	newTagsString := handler.promptUser("New Tags: ")
-	if len(newTagsString) != 0 {
-		tagsChanged = true
-		note.Tags = cleanTagsFromString(newTagsString)
+	fmt.Println()
+
+	if handler.makeUserConfirmAction("update tags?") {
+		newTagsString := handler.promptUser("new tags: ")
+
+		if len(newTagsString) != 0 {
+			tagsChanged = true
+			note.Tags = cleanTagsFromString(newTagsString)
+		}
 	}
 
-	if changed {
+	if contentChanged {
 		if err := handler.repository.UpdateNote(*note); err != nil {
 			return err
 		}
@@ -223,6 +225,9 @@ func (handler handler) EditNote(ctx *cli.Context) error {
 			return err
 		}
 	}
+
+	fmt.Println()
+	handler.printNote(note, printOptions{})
 
 	return nil
 }

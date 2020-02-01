@@ -14,7 +14,9 @@ type Repository interface {
 	DeleteNote(noteId string) error
 
 	// Fetch a single note from the database
-	GetNote(noteId string) (*models.Note, error)
+	LookupNote(noteId string) (*models.Note, error)
+
+	LookupNoteWithTags(noteId string) (*models.Note, error)
 
 	// Update a note.
 	UpdateNote(note models.Note) error
