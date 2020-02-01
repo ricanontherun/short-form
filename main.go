@@ -10,6 +10,8 @@ import (
 	"github.com/urfave/cli/v2"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
 )
 
 var (
@@ -30,6 +32,17 @@ func startupError(err error) {
 	dd("Failed to start sf: " + err.Error())
 }
 
+// Setup signal handlers so that users can back out of multi-step operations.
+func setupSignalHandlers() {
+	signalChan := make(chan os.Signal, 2)
+	signal.Notify(signalChan, os.Interrupt, syscall.SIGTERM)
+
+	go func() {
+		<- signalChan
+		os.Exit(1)
+	}()
+}
+
 func main() {
 	if err := utils.EnsureFilePath(conf.ResolveDatabaseFilePath()); err != nil {
 		startupError(err)
@@ -48,11 +61,13 @@ func main() {
 
 	handle := command.NewHandlerBuilder(repo).Build()
 
+	setupSignalHandlers()
+
 	app := cli.App{
 		Name:        "sf",
 		Usage:       "A command-line journal for bite sized thoughts",
-		Description: "sf is a command-line journal for simple note writing",
-		Version:     "1.0.0",
+		Description: "short-form allows you to write, tag and search for short notes via the command line.",
+		Version:     "1.1.0",
 		Commands: []*cli.Command{
 			{
 				Name:    "write",
