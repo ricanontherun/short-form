@@ -21,7 +21,31 @@ var (
 		Usage:   "comma,separated,list of tags to filter on.",
 		Value:   "",
 	}
+
+	appVersion = "1.1.1"
 )
+
+var searchFlags = []cli.Flag{
+	tagFlag,
+	&cli.StringFlag{
+		Name:    "content",
+		Usage:   "Search by note content",
+		Aliases: []string{"c"},
+		Value:   "",
+	},
+	&cli.StringFlag{
+		Name:    "age",
+		Usage:   "Search by age of note, e.g 2d for 2 days old",
+		Aliases: []string{"a"},
+		Value:   "",
+	},
+	&cli.BoolFlag{
+		Name:    "detailed",
+		Aliases: []string{"d"},
+		Usage:   "Display detailed note information",
+		Value:   false,
+	},
+}
 
 func dd(message string) {
 	fmt.Println(message)
@@ -38,7 +62,7 @@ func setupSignalHandlers() {
 	signal.Notify(signalChan, os.Interrupt, syscall.SIGTERM)
 
 	go func() {
-		<- signalChan
+		<-signalChan
 		os.Exit(1)
 	}()
 }
@@ -67,7 +91,7 @@ func main() {
 		Name:        "sf",
 		Usage:       "A command-line journal for bite sized thoughts",
 		Description: "short-form allows you to write, tag and search for short notes via the command line.",
-		Version:     "1.1.0",
+		Version:     appVersion,
 		Commands: []*cli.Command{
 			{
 				Name:    "write",
@@ -107,6 +131,7 @@ func main() {
 						Name:    "today",
 						Usage:   "Search for notes written today",
 						Aliases: []string{"t"},
+						Flags:   searchFlags,
 						Action:  handle.SearchToday,
 					},
 
@@ -115,30 +140,11 @@ func main() {
 						Name:    "yesterday",
 						Usage:   "Search for notes written yesterday",
 						Aliases: []string{"y"},
+						Flags:   searchFlags,
 						Action:  handle.SearchYesterday,
 					},
 				},
-				Flags: []cli.Flag{
-					tagFlag,
-					&cli.StringFlag{
-						Name:    "content",
-						Usage:   "Search by note content",
-						Aliases: []string{"c"},
-						Value:   "",
-					},
-					&cli.StringFlag{
-						Name:    "age",
-						Usage:   "Search by age of note, e.g 2d for 2 days old",
-						Aliases: []string{"a"},
-						Value:   "",
-					},
-					&cli.BoolFlag{
-						Name:    "detailed",
-						Aliases: []string{"d"},
-						Usage:   "Display detailed note information",
-						Value:   false,
-					},
-				},
+				Flags:  searchFlags,
 				Action: handle.SearchNotes,
 			},
 		},
