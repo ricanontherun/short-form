@@ -3,6 +3,7 @@ package command
 import (
 	"fmt"
 	"github.com/ricanontherun/short-form/models"
+	"github.com/ricanontherun/short-form/output"
 	"github.com/ricanontherun/short-form/repository"
 	uuid "github.com/satori/go.uuid"
 	"github.com/urfave/cli/v2"
@@ -18,12 +19,14 @@ type handler struct {
 	repository      repository.Repository
 	nowSupplier     nowSupplier
 	inputController UserInputController
+	printer         output.Printer
 }
 
 type HandlerBuilder struct {
 	repository      repository.Repository
 	nowSupplier     nowSupplier
 	inputController UserInputController
+	printer         output.Printer
 }
 
 func NewHandlerBuilder(repository repository.Repository) *HandlerBuilder {
@@ -57,6 +60,8 @@ func (builder *HandlerBuilder) Build() handler {
 		handler.inputController = NewUserInputController()
 	}
 
+	handler.printer = output.NewPrinter()
+
 	return handler
 }
 
@@ -68,7 +73,7 @@ func (handler handler) WriteNote(ctx *cli.Context) error {
 	input := getInputFromContext(ctx)
 
 	if len(input.content) == 0 {
-		return ErrEmptyContent
+		return errEmptyContent
 	}
 
 	note := models.NewNote(input.tags, input.content)
@@ -93,7 +98,7 @@ func (handler handler) SearchToday(ctx *cli.Context) error {
 	if notes, err := handler.repository.SearchNotes(searchFilters); err != nil {
 		return err
 	} else {
-		handler.printNotes(notes, getPrintOptionsFromContext(ctx))
+		handler.printer.PrintNotes(notes, getPrintOptionsFromContext(ctx))
 	}
 
 	return nil
@@ -108,7 +113,7 @@ func (handler handler) SearchYesterday(ctx *cli.Context) error {
 	if notes, err := handler.repository.SearchNotes(baseFilters); err != nil {
 		return err
 	} else {
-		handler.printNotes(notes, getPrintOptionsFromContext(ctx))
+		handler.printer.PrintNotes(notes, getPrintOptionsFromContext(ctx))
 	}
 
 	return nil
@@ -117,11 +122,11 @@ func (handler handler) SearchYesterday(ctx *cli.Context) error {
 func (handler handler) SearchNotes(ctx *cli.Context) error {
 	searchFilters := getSearchFiltersFromContext(ctx)
 
-	age := strings.ToLower(ctx.String(FlagAge))
+	age := strings.ToLower(ctx.String(flagAge))
 	if len(age) > 0 {
 		validAge := regexp.MustCompile(`^\d+d$`)
 		if !validAge.MatchString(age) {
-			return ErrInvalidAge
+			return errInvalidAge
 		} else {
 			ageDays, _ := strconv.Atoi(strings.TrimRight(age, "d"))
 			end := handler.nowSupplier()
@@ -137,7 +142,7 @@ func (handler handler) SearchNotes(ctx *cli.Context) error {
 	if notes, err := handler.repository.SearchNotes(searchFilters); err != nil {
 		return err
 	} else {
-		handler.printNotes(notes, getPrintOptionsFromContext(ctx))
+		handler.printer.PrintNotes(notes, getPrintOptionsFromContext(ctx))
 	}
 
 	return nil
@@ -146,11 +151,11 @@ func (handler handler) SearchNotes(ctx *cli.Context) error {
 func (handler handler) DeleteNote(ctx *cli.Context) error {
 	noteId := strings.TrimSpace(ctx.Args().First())
 	if len(noteId) <= 0 {
-		return ErrMissingNoteId
+		return errMissingNoteId
 	}
 
 	if _, err := uuid.FromString(noteId); err != nil {
-		return ErrInvalidNoteId
+		return errInvalidNoteId
 	}
 
 	if _, err := handler.repository.LookupNote(noteId); err != nil {
@@ -175,17 +180,17 @@ func (handler handler) EditNote(ctx *cli.Context) error {
 	noteId := ctx.Args().First()
 
 	if len(noteId) == 0 {
-		return ErrMissingNoteId
+		return errMissingNoteId
 	}
 
 	if _, err := uuid.FromString(noteId); err != nil {
-		return ErrInvalidNoteId
+		return errInvalidNoteId
 	}
 
 	note, err := handler.repository.LookupNoteWithTags(noteId)
 	if err != nil {
 		if err == repository.ErrNoteNotFound {
-			return ErrNoteNotFound
+			return errNoteNotFound
 		}
 
 		return err
@@ -202,8 +207,6 @@ func (handler handler) EditNote(ctx *cli.Context) error {
 			note.Content = newContent
 		}
 	}
-
-	fmt.Println()
 
 	if handler.makeUserConfirmAction("update tags?") {
 		newTagsString := handler.promptUser("new tags: ")
@@ -227,7 +230,7 @@ func (handler handler) EditNote(ctx *cli.Context) error {
 	}
 
 	fmt.Println()
-	handler.printNote(note, printOptions{})
+	handler.printer.PrintNote(note, getPrintOptionsFromContext(ctx))
 
 	return nil
 }

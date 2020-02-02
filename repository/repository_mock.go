@@ -18,7 +18,7 @@ func (repository *mockRepository) WriteNote(note models.Note) error {
 	return nil
 }
 
-func (repository *mockRepository) SearchNotes(ctx models.SearchFilters) ([]models.Note, error) {
+func (repository *mockRepository) SearchNotes(ctx models.SearchFilters) ([]*models.Note, error) {
 	repository.Called(ctx)
 	return nil, nil
 }

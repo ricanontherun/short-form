@@ -5,11 +5,9 @@ go 1.13
 require (
 	github.com/boltdb/bolt v1.3.1 // indirect
 	github.com/dustin/go-humanize v1.0.0 // indirect
-	github.com/fatih/color v1.7.0
+	github.com/fatih/color v1.9.0
 	github.com/gojp/goreportcard v0.0.0-20191001233754-41818f5fd295 // indirect
 	github.com/k0kubun/pp v3.0.1+incompatible // indirect
-	github.com/mattn/go-colorable v0.1.4 // indirect
-	github.com/mattn/go-isatty v0.0.11 // indirect
 	github.com/mattn/go-runewidth v0.0.7 // indirect
 	github.com/mattn/go-sqlite3 v2.0.1+incompatible
 	github.com/mdempsky/gocode v0.0.0-20191202075140-939b4a677f2f // indirect

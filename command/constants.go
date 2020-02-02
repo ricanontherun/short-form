@@ -3,16 +3,17 @@ package command
 import "errors"
 
 var (
-	ErrEmptyContent  = errors.New("empty content")
-	ErrMissingNoteId = errors.New("missing note id")
-	ErrInvalidNoteId = errors.New("invalid note id")
-	ErrNoteNotFound  = errors.New("note not found")
-	ErrInvalidAge    = errors.New("invalid age")
+	errEmptyContent  = errors.New("empty content")
+	errMissingNoteId = errors.New("missing note id")
+	errInvalidNoteId = errors.New("invalid note id")
+	errNoteNotFound  = errors.New("note not found")
+	errInvalidAge    = errors.New("invalid age")
 )
 
 const (
-	FlagTags     = "tags"
-	FlagAge      = "age"
-	FlagContent  = "content"
-	FlagDetailed = "detailed"
+	flagTags     = "tags"
+	flagAge      = "age"
+	flagContent  = "content"
+	flagDetailed = "detailed"
+	flagPretty   = "pretty"
 )

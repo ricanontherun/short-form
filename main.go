@@ -22,7 +22,7 @@ var (
 		Value:   "",
 	}
 
-	appVersion = "1.2.0"
+	appVersion = "1.3.0"
 )
 
 var searchFlags = []cli.Flag{
@@ -92,6 +92,13 @@ func main() {
 		Usage:       "A command-line journal for bite sized thoughts",
 		Description: "short-form allows you to write, tag and search for short notes via the command line.",
 		Version:     appVersion,
+		Flags: []cli.Flag{
+			&cli.BoolFlag{
+				Name:    "pretty",
+				Aliases: []string{"p"},
+				Value:   false,
+			},
+		},
 		Commands: []*cli.Command{
 			{
 				Name:    "write",

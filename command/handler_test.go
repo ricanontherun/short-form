@@ -1,9 +1,8 @@
 // These tests assert that the handler can correctly process user CLI input.
-package command_test
+package command
 
 import (
 	"flag"
-	"github.com/ricanontherun/short-form/command"
 	"github.com/ricanontherun/short-form/models"
 	"github.com/ricanontherun/short-form/repository"
 	uuid "github.com/satori/go.uuid"
@@ -40,7 +39,7 @@ func TestHandler_WriteNote(t *testing.T) {
 		{
 			inputArgs:   []string{""},
 			inputTags:   "one,two",
-			expectedErr: command.ErrEmptyContent,
+			expectedErr: errEmptyContent,
 		},
 
 		// Tags aren't required.
@@ -72,7 +71,7 @@ func TestHandler_WriteNote(t *testing.T) {
 		r := repository.NewMockRepository()
 		r.On("WriteNote", mock.Anything).Return(nil)
 
-		h := command.NewHandlerBuilder(&r).Build()
+		h := NewHandlerBuilder(&r).Build()
 
 		err := h.WriteNote(context)
 		if test.expectedErr != nil {
@@ -132,7 +131,7 @@ func TestHandler_SearchToday(t *testing.T) {
 		context := createAppContext(flags, []string{})
 		r := repository.NewMockRepository()
 		r.On("SearchNotes", mock.Anything).Return(nil)
-		h := command.NewHandlerBuilder(&r).Build()
+		h := NewHandlerBuilder(&r).Build()
 
 		// When
 		if err := h.SearchToday(context); err != nil {
@@ -189,7 +188,7 @@ func TestHandler_SearchYesterday(t *testing.T) {
 		r := repository.NewMockRepository()
 		r.On("SearchNotes", mock.Anything).Return(nil)
 
-		h := command.NewHandlerBuilder(&r).Build()
+		h := NewHandlerBuilder(&r).Build()
 
 		// When
 		if err := h.SearchYesterday(context); err != nil {
@@ -230,15 +229,15 @@ func TestHandler_SearchNotes(t *testing.T) {
 		// Invalid age
 		{
 			inputAge:    "what",
-			expectedErr: command.ErrInvalidAge,
+			expectedErr: errInvalidAge,
 		},
 		{
 			inputAge:    "1m",
-			expectedErr: command.ErrInvalidAge,
+			expectedErr: errInvalidAge,
 		},
 		{
 			inputAge:    "10",
-			expectedErr: command.ErrInvalidAge,
+			expectedErr: errInvalidAge,
 		},
 		{
 			inputAge:     "2d",
@@ -273,7 +272,7 @@ func TestHandler_SearchNotes(t *testing.T) {
 
 		r := repository.NewMockRepository()
 		r.On("SearchNotes", mock.Anything).Return(nil)
-		h := command.NewHandlerBuilder(&r).WithNowSupplier(func() time.Time {
+		h := NewHandlerBuilder(&r).WithNowSupplier(func() time.Time {
 			return now
 		}).Build()
 
@@ -305,7 +304,7 @@ func TestHandler_DeleteNote(t *testing.T) {
 		},
 	}
 
-	input := command.NewMockInput()
+	input := NewMockInput()
 	input.On("GetString", mock.Anything).Return("y")
 
 	for _, test := range tests {
@@ -320,7 +319,7 @@ func TestHandler_DeleteNote(t *testing.T) {
 
 		r.On("DeleteNote", noteId).Return(nil)
 
-		h := command.NewHandlerBuilder(&r).WithUserInputController(input).Build()
+		h := NewHandlerBuilder(&r).WithUserInputController(input).Build()
 		err := h.DeleteNote(context)
 
 		assert.Nil(t, err)
@@ -339,17 +338,17 @@ func TestHandler_DeleteNote_Validation(t *testing.T) {
 		// Missing ID
 		{
 			inputArgs:   []string{},
-			expectedErr: command.ErrMissingNoteId,
+			expectedErr: errMissingNoteId,
 		},
 
 		// Bad note id.
 		{
 			inputArgs:   []string{invalidNoteId},
-			expectedErr: command.ErrInvalidNoteId,
+			expectedErr: errInvalidNoteId,
 		},
 	}
 
-	input := command.NewMockInput()
+	input := NewMockInput()
 	input.On("GetString", mock.Anything).Return("y")
 
 	for _, test := range tests {
@@ -358,7 +357,7 @@ func TestHandler_DeleteNote_Validation(t *testing.T) {
 		context := createAppContext(flags, test.inputArgs)
 		r := repository.NewMockRepository()
 
-		h := command.NewHandlerBuilder(&r).WithUserInputController(input).Build()
+		h := NewHandlerBuilder(&r).WithUserInputController(input).Build()
 		err := h.DeleteNote(context)
 
 		assert.NotNil(t, err)

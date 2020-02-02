@@ -145,7 +145,7 @@ func (repository sqlRepository) executeWithinTransaction(callback func(*sql.Tx) 
 	}
 }
 
-func (repository sqlRepository) SearchNotes(ctx models.SearchFilters) ([]models.Note, error) {
+func (repository sqlRepository) SearchNotes(ctx models.SearchFilters) ([]*models.Note, error) {
 	stmt, err := repository.conn.Prepare(buildSearchQueryFromContext(ctx))
 	if err != nil {
 		return nil, err
@@ -157,7 +157,7 @@ func (repository sqlRepository) SearchNotes(ctx models.SearchFilters) ([]models.
 		return nil, err
 	}
 
-	var notes []models.Note
+	var notes []*models.Note
 	for rs.Next() {
 		var note models.Note
 		var tagString string
@@ -174,7 +174,7 @@ func (repository sqlRepository) SearchNotes(ctx models.SearchFilters) ([]models.
 			}
 		}
 
-		notes = append(notes, note)
+		notes = append(notes, &note)
 	}
 
 	return notes, nil

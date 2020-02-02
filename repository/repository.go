@@ -8,7 +8,7 @@ type Repository interface {
 	WriteNote(note models.Note) error
 
 	// Search for notes by tag, date or content
-	SearchNotes(ctx models.SearchFilters) ([]models.Note, error)
+	SearchNotes(ctx models.SearchFilters) ([]*models.Note, error)
 
 	// Delete a note (hard delete)
 	DeleteNote(noteId string) error

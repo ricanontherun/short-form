@@ -3,6 +3,7 @@ package command
 import (
 	"fmt"
 	"github.com/ricanontherun/short-form/models"
+	"github.com/ricanontherun/short-form/output"
 	"github.com/ricanontherun/short-form/utils"
 	"github.com/urfave/cli/v2"
 	"strings"
@@ -13,15 +14,11 @@ type parsedInput struct {
 	tags    []string
 }
 
-type printOptions struct {
-	highlight string
-	detailed  bool
-}
-
-func getPrintOptionsFromContext(ctx *cli.Context) printOptions {
-	return printOptions{
-		highlight: ctx.String(FlagContent),
-		detailed:  ctx.Bool(FlagDetailed),
+func getPrintOptionsFromContext(ctx *cli.Context) output.Options {
+	return output.Options{
+		Highlight: ctx.String(flagContent),
+		Detailed:  ctx.Bool(flagDetailed),
+		Pretty:    ctx.Bool(flagPretty),
 	}
 }
 
@@ -50,7 +47,7 @@ func getInputFromContext(ctx *cli.Context) parsedInput {
 
 // Return a cleaned array of tags provided as --tags=t1,t2,t3, as ['t1', 't2', 't3']
 func getTagsFromContext(c *cli.Context) []string {
-	return cleanTagsFromString(c.String(FlagTags))
+	return cleanTagsFromString(c.String(flagTags))
 }
 
 func cleanTagsFromString(tagString string) []string {
@@ -70,53 +67,6 @@ func cleanTagsFromString(tagString string) []string {
 func getSearchFiltersFromContext(c *cli.Context) models.SearchFilters {
 	return models.SearchFilters{
 		Tags:    getTagsFromContext(c),
-		Content: strings.TrimSpace(c.String(FlagContent)),
+		Content: strings.TrimSpace(c.String(flagContent)),
 	}
-}
-
-func (handler handler) printNotes(notes []models.Note, options printOptions) {
-	noteCount := len(notes)
-
-	if noteCount <= 0 {
-		return
-	}
-
-	noteCountString := ""
-	if noteCount == 1 {
-		noteCountString = fmt.Sprintf("1 note found")
-	} else {
-		noteCountString = fmt.Sprintf("%d notes found", noteCount)
-	}
-
-	fmt.Println(noteCountString)
-	fmt.Println()
-
-	for _, note := range notes {
-		handler.printNote(&note, options)
-	}
-}
-
-func (handler handler) printNote(note *models.Note, options printOptions) {
-	bits := make([]string, 0, 4)
-
-	bits = append(bits, note.Timestamp.Format("January 02, 2006 03:04 PM"))
-
-	if options.detailed {
-		bits = append(bits, note.ID)
-	}
-
-	if len(note.Tags) > 0 {
-		bits = append(bits, strings.Join(note.Tags, ", "))
-	}
-
-	fmt.Println(strings.Join(bits, " | "))
-
-	contentString := note.Content
-
-	if options.highlight != "" {
-		contentString = utils.HighlightString(note.Content, options.highlight)
-	}
-
-	fmt.Println(contentString)
-	fmt.Println()
 }

@@ -79,13 +79,19 @@ Display note details.
 ➜ sf s -d -t top-secret 
 1 note(s) found
 
-December 08, 2019 02:35 PM | b0e67f71-e629-4f5e-a8c5-06a2fa1fe473 | top-secret
+December 08, 2019 02:35 PM | NOTEID | top-secret
 This is a secret note
 ```
 
 #### Delete a note
 ```
-➜ sf d 365c2ed4-ae92-4a34-88e3-f9edfac1aa19
+➜ sf d NOTEID
+```
+
+#### Pretty Print (colors)
+
+```
+➜ sf -p ...
 ```
 
 ### Shorthand

@@ -1,4 +1,4 @@
-package utils
+package output
 
 import (
 	"github.com/fatih/color"
@@ -11,8 +11,8 @@ type highlight struct {
 	Right     string
 }
 
-// HighlightString highlights (using terminal codes) the occurrences of highlight in original.
-func HighlightString(original string, highlight string) string {
+// highlightNeedle highlights (using terminal codes) the occurrences of Highlight in original.
+func highlightNeedle(original string, highlight string) string {
 	highlights := parseHighlights(original, highlight)
 
 	if len(highlights) > 0 {
