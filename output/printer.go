@@ -26,7 +26,9 @@ func (printer printer) PrintNotes(notes []*models.Note, options Options) {
 		fmt.Println(fmt.Sprintf("%d notes found", noteCount))
 	}
 
-	fmt.Println()
+	if noteCount > 0 {
+		fmt.Println()
+	}
 
 	for _, note := range notes {
 		printer.PrintNote(note, options)
@@ -53,10 +55,34 @@ func (printer printer) PrintNote(note *models.Note, options Options) {
 	}
 
 	if len(note.Tags) > 0 {
-		tagsString := strings.Join(note.Tags, ", ")
+		// Bold and underline any matching tags.
+		tagsString := ""
+		if len(options.SearchTags) > 0 {
+			searchTagMap := make(map[string]bool)
+			for _, searchTag := range options.SearchTags {
+				searchTagMap[searchTag] = true
+			}
 
-		if options.Pretty {
-			tagsString = color.BlueString(tagsString)
+			processedTags := make([]string, 0, len(note.Tags))
+			printer := color.New(color.Bold, color.Underline)
+			bluePrinter := color.New(color.FgBlue)
+
+			for _, noteTag := range note.Tags {
+				if _, exists := searchTagMap[noteTag]; exists {
+					highlightedTag := printer.Sprint(noteTag)
+					if options.Pretty {
+						highlightedTag = bluePrinter.Sprint(highlightedTag)
+					}
+
+					processedTags = append(processedTags, highlightedTag)
+				} else {
+					processedTags = append(processedTags, noteTag)
+				}
+			}
+
+			tagsString = strings.Join(processedTags, ", ")
+		} else {
+			tagsString = strings.Join(note.Tags, ", ")
 		}
 
 		bits = append(bits, tagsString)
@@ -66,8 +92,14 @@ func (printer printer) PrintNote(note *models.Note, options Options) {
 
 	contentString := note.Content
 
-	if options.Highlight != "" {
-		contentString = highlightNeedle(note.Content, options.Highlight)
+	if options.SearchContent != "" {
+		printer := color.New(color.Bold, color.Underline)
+
+		if options.Pretty {
+			printer.Add(color.FgYellow)
+		}
+
+		contentString = highlightNeedle(note.Content, options.SearchContent, printer)
 	}
 
 	fmt.Println(contentString)
