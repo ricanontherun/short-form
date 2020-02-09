@@ -11,16 +11,15 @@ type highlight struct {
 	Right     string
 }
 
-// highlightNeedle highlights (using terminal codes) the occurrences of Highlight in original.
-func highlightNeedle(original string, highlight string) string {
+// highlightNeedle highlights (using terminal codes) the occurrences of SearchContent in original.
+func highlightNeedle(original string, highlight string, printer *color.Color) string {
 	highlights := parseHighlights(original, highlight)
 
 	if len(highlights) > 0 {
 		highlighted := ""
-		colorPrinter := color.New(color.Bold)
 
 		for _, hl := range highlights {
-			highlighted += hl.Left + colorPrinter.Sprint(hl.Highlight) + hl.Right
+			highlighted += hl.Left + printer.Sprint(hl.Highlight) + hl.Right
 		}
 
 		return highlighted

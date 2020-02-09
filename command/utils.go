@@ -16,9 +16,10 @@ type parsedInput struct {
 
 func getPrintOptionsFromContext(ctx *cli.Context) output.Options {
 	return output.Options{
-		Highlight: ctx.String(flagContent),
-		Detailed:  ctx.Bool(flagDetailed),
-		Pretty:    ctx.Bool(flagPretty),
+		SearchContent: ctx.String(flagContent),
+		Detailed:      ctx.Bool(flagDetailed),
+		Pretty:        ctx.Bool(flagPretty),
+		SearchTags:    getTagsFromContext(ctx),
 	}
 }
 

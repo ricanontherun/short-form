@@ -364,3 +364,54 @@ func TestHandler_DeleteNote_Validation(t *testing.T) {
 		assert.EqualValues(t, test.expectedErr, err)
 	}
 }
+
+func TestHandler_EditNote_MissingNoteId(t *testing.T) {
+	var flags = map[string]string{}
+	context := createAppContext(flags, []string{})
+
+	r := repository.NewMockRepository()
+	h := NewHandlerBuilder(&r).Build()
+
+	err := h.EditNote(context)
+
+	assert.NotNil(t, err)
+	assert.EqualValues(t, errMissingNoteId, err)
+
+	r.AssertNotCalled(t, "LookupNoteWithTags", mock.Anything)
+}
+
+// Invalid note id.
+func TestHandler_EditNote_InvalidNoteid(t *testing.T) {
+	var flags = map[string]string{}
+	context := createAppContext(flags, []string{"not a UUID"})
+
+	r := repository.NewMockRepository()
+	h := NewHandlerBuilder(&r).Build()
+
+	err := h.EditNote(context)
+
+	assert.NotNil(t, err)
+	assert.EqualValues(t, errInvalidNoteId, err)
+
+	r.AssertNotCalled(t, "LookupNoteWithTags", mock.Anything)
+}
+
+// Note not found.
+func TestHandler_EditNote_InvalidNoteNotFound(t *testing.T) {
+	var flags = map[string]string{}
+	noteId := uuid.NewV4().String()
+	context := createAppContext(flags, []string{noteId})
+
+	r := repository.NewMockRepository()
+	r.On("LookupNoteWithTags", noteId).Return(&models.Note{}, errNoteNotFound)
+
+	h := NewHandlerBuilder(&r).Build()
+
+	err := h.EditNote(context)
+
+	assert.NotNil(t, err)
+	assert.EqualValues(t, errNoteNotFound, err)
+	r.AssertNumberOfCalls(t, "LookupNoteWithTags", 1)
+}
+
+// Success case.

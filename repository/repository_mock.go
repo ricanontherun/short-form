@@ -33,8 +33,8 @@ func (repository *mockRepository) LookupNote(noteId string) (*models.Note, error
 }
 
 func (repository *mockRepository) LookupNoteWithTags(noteId string) (*models.Note, error) {
-	repository.Called(noteId)
-	return nil, nil
+	args := repository.Called(noteId)
+	return args.Get(0).(*models.Note), args.Error(1)
 }
 
 func (repository *mockRepository) UpdateNote(note models.Note) error {
