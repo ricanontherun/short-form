@@ -3,12 +3,11 @@ package database
 import (
 	"database/sql"
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/ricanontherun/short-form/conf"
 )
 
 // NewDatabaseConnection creates a new database connection.
-func NewDatabaseConnection() (*sql.DB, error) {
-	db, err := sql.Open("sqlite3", conf.ResolveDatabaseFilePath())
+func NewDatabaseConnection(path string) (*sql.DB, error) {
+	db, err := sql.Open("sqlite3", path)
 
 	if err != nil {
 		return nil, err

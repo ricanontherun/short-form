@@ -1,12 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/ricanontherun/short-form/command"
 	"github.com/ricanontherun/short-form/conf"
 	"github.com/ricanontherun/short-form/database"
 	"github.com/ricanontherun/short-form/repository"
-	"github.com/ricanontherun/short-form/utils"
 	"github.com/urfave/cli/v2"
 	"log"
 	"os"
@@ -22,7 +22,7 @@ var (
 		Value:   "",
 	}
 
-	appVersion = "1.3.0"
+	appVersion = "1.4.0"
 )
 
 var searchFlags = []cli.Flag{
@@ -68,17 +68,14 @@ func setupSignalHandlers() {
 }
 
 func main() {
-	if err := utils.EnsureFilePath(conf.ResolveDatabaseFilePath()); err != nil {
-		startupError(err)
-	}
-
-	databaseConnection, err := database.NewDatabaseConnection()
+	userConfig, err := conf.ReadUserConfig()
 	if err != nil {
-		startupError(err)
+		log.Fatalln(err)
 	}
-	defer databaseConnection.Close()
 
-	repo, err := repository.NewSqlRepository(databaseConnection)
+	db := database.NewDatabase(userConfig.GetDatabasePath())
+
+	repo, err := repository.NewSqlRepository(db)
 	if err != nil {
 		log.Fatalf("Failed to open database: %s", err.Error())
 	}
@@ -153,6 +150,44 @@ func main() {
 				},
 				Flags:  searchFlags,
 				Action: handle.SearchNotes,
+			},
+			{
+				Name:    "configure",
+				Usage: "Configure short-form",
+				Aliases: []string{"c"},
+				Subcommands: []*cli.Command{
+					{
+						Name:    "read",
+						Aliases: []string{"r"},
+						Usage: "Display current configure",
+						Action: func(ctx *cli.Context) error {
+							if pretty, err := json.MarshalIndent(userConfig, "", "	"); err != nil {
+								return err
+							} else {
+								fmt.Println(string(pretty))
+								return nil
+							}
+						},
+					},
+					{
+						Name:    "database",
+						Usage: "Configure database properties",
+						Aliases: []string{"d"},
+						Flags: []cli.Flag{
+							&cli.StringFlag{
+								Name:        "path",
+								Aliases:     []string{"p"},
+								Usage:       "Path to database file",
+								Required:    true,
+								Value:       "",
+								DefaultText: "",
+							},
+						},
+						Action: func(ctx *cli.Context) error {
+							return handle.ConfigureDatabase(ctx, userConfig)
+						},
+					},
+				},
 			},
 		},
 	}

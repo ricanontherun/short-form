@@ -4,21 +4,25 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/ricanontherun/short-form/database"
 	"github.com/ricanontherun/short-form/models"
 	"strings"
 )
 
 type sqlRepository struct {
-	conn *sql.DB
+	db database.Database
 }
 
-func NewSqlRepository(db *sql.DB) (Repository, error) {
+func NewSqlRepository(db database.Database) (Repository, error) {
 	repository := sqlRepository{db}
 
-	if err := repository.initialize(); err != nil {
-		db.Close()
-		return nil, errors.New("failed to initialize database: " + err.Error())
-	}
+	repository.db.SetPostInit(func(db *sql.DB) error {
+		if err := repository.initialize(db); err != nil {
+			return errors.New("failed to initialize database: " + err.Error())
+		}
+
+		return nil
+	})
 
 	return repository, nil
 }
@@ -130,7 +134,7 @@ func (repository sqlRepository) writeNoteTags(tx *sql.Tx, noteId string, tags []
 }
 
 func (repository sqlRepository) executeWithinTransaction(callback func(*sql.Tx) error) error {
-	if transaction, err := repository.conn.Begin(); err != nil {
+	if transaction, err := repository.db.GetConnection().Begin(); err != nil {
 		return err
 	} else {
 		if err := callback(transaction); err != nil {
@@ -146,7 +150,7 @@ func (repository sqlRepository) executeWithinTransaction(callback func(*sql.Tx) 
 }
 
 func (repository sqlRepository) SearchNotes(ctx models.SearchFilters) ([]*models.Note, error) {
-	stmt, err := repository.conn.Prepare(buildSearchQueryFromContext(ctx))
+	stmt, err := repository.db.GetConnection().Prepare(buildSearchQueryFromContext(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +185,7 @@ func (repository sqlRepository) SearchNotes(ctx models.SearchFilters) ([]*models
 }
 
 func (repository sqlRepository) getNoteTags(noteId string) ([]string, error) {
-	if stmt, err := repository.conn.Prepare(sqlGetNoteTags); err != nil {
+	if stmt, err := repository.db.GetConnection().Prepare(sqlGetNoteTags); err != nil {
 		return nil, err
 	} else {
 		defer stmt.Close()
@@ -235,7 +239,7 @@ func (repository sqlRepository) deleteNoteTags(tx *sql.Tx, noteId string) error 
 
 // Update a note's content
 func (repository sqlRepository) UpdateNoteContent(noteId string, content string) error {
-	if stmt, err := repository.conn.Prepare(sqlUpdateNote); err != nil {
+	if stmt, err := repository.db.GetConnection().Prepare(sqlUpdateNote); err != nil {
 		return err
 	} else {
 		if updateResult, err := stmt.Exec(content, noteId); err != nil {
@@ -260,7 +264,7 @@ func (repository sqlRepository) LookupNoteWithTags(noteId string) (*models.Note,
 }
 
 func (repository sqlRepository) getNote(noteId string, withTags bool) (*models.Note, error) {
-	if stmt, err := repository.conn.Prepare(sqlGetNote); err != nil {
+	if stmt, err := repository.db.GetConnection().Prepare(sqlGetNote); err != nil {
 		return nil, err
 	} else {
 		var note models.Note
@@ -288,7 +292,7 @@ func (repository sqlRepository) getNote(noteId string, withTags bool) (*models.N
 }
 
 func (repository sqlRepository) UpdateNote(note models.Note) error {
-	if stmt, err := repository.conn.Prepare(sqlUpdateNoteContent); err != nil {
+	if stmt, err := repository.db.GetConnection().Prepare(sqlUpdateNoteContent); err != nil {
 		return err
 	} else {
 		if results, err := stmt.Exec(note.Content, note.ID); err != nil {
@@ -304,8 +308,8 @@ func (repository sqlRepository) UpdateNote(note models.Note) error {
 }
 
 // Initialize the database structure.
-func (repository sqlRepository) initialize() error {
-	if _, err := repository.conn.Exec(sqlInitializeDatabase); err != nil {
+func (repository sqlRepository) initialize(db *sql.DB) error {
+	if _, err := db.Exec(sqlInitializeDatabase); err != nil {
 		return err
 	}
 

@@ -1,7 +1,9 @@
 package command
 
 import (
+	"errors"
 	"fmt"
+	"github.com/ricanontherun/short-form/conf"
 	"github.com/ricanontherun/short-form/models"
 	"github.com/ricanontherun/short-form/output"
 	"github.com/ricanontherun/short-form/repository"
@@ -11,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"path/filepath"
 )
 
 type nowSupplier func() time.Time
@@ -233,4 +236,22 @@ func (handler handler) EditNote(ctx *cli.Context) error {
 	handler.printer.PrintNote(note, getPrintOptionsFromContext(ctx))
 
 	return nil
+}
+
+func (handler handler) ConfigureDatabase(cli *cli.Context, conf conf.Config) error {
+	path := cli.String("path")
+	if len(path) == 0 {
+		return errors.New("invalid path, empty")
+	}
+
+	path, err := filepath.Abs(path)
+	if err != nil {
+		return err
+	}
+
+	if err := conf.SetDatabasePath(path); err != nil {
+		return err
+	}
+
+	return conf.Save()
 }

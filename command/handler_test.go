@@ -414,4 +414,28 @@ func TestHandler_EditNote_InvalidNoteNotFound(t *testing.T) {
 	r.AssertNumberOfCalls(t, "LookupNoteWithTags", 1)
 }
 
+func TestHandler_EditNote_AcceptInput(t *testing.T) {
+}
+
 // Success case.
+func TestHandler_EditNote(t *testing.T) {
+	var flags = map[string]string{}
+	noteId := uuid.NewV4().String()
+	context := createAppContext(flags, []string{noteId})
+
+	r := repository.NewMockRepository()
+	note := &models.Note{
+		ID: noteId,
+		Content: "note content",
+		Tags: []string{"music", "general"},
+	}
+
+	r.On("LookupNoteWithTags", noteId).Return(note, nil)
+
+	h := NewHandlerBuilder(&r).Build()
+
+	err := h.EditNote(context)
+
+	assert.Nil(t, err)
+	r.AssertNumberOfCalls(t, "LookupNoteWithTags", 1)
+}

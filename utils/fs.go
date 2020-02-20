@@ -6,23 +6,27 @@ import (
 )
 
 // Create an entire file path, including any parent directories.
-func EnsureFilePath(filePath string) error {
+// Returns if the path existed and any errors
+func EnsureFilePath(filePath string) (bool, error) {
+	var exists bool = true
+
 	if _, err := os.Stat(filePath); err != nil {
 		if os.IsNotExist(err) {
+			exists = false
 			levels := strings.Split(filePath, string(os.PathSeparator))
 			lastLevel := len(levels) - 1
 
 			if err := os.MkdirAll(strings.Join(levels[0:lastLevel], string(os.PathSeparator)), os.ModePerm); err != nil {
-				return nil
+				return exists, err
 			}
 
 			if _, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE, os.ModePerm); err != nil {
-				return err
+				return exists, err
 			}
 		} else {
-			return err
+			return exists, err
 		}
 	}
 
-	return nil
+	return exists, nil
 }

@@ -94,6 +94,22 @@ This is a secret note
 ➜ sf -p ...
 ```
 
+#### Configuration
+You can configure short-form to use any file path for a database
+with the `sf c d` command. The filepath doesn't need to exist, short-form
+wil create it for you if need be.
+
+```bash
+sf c d -p /path/to/your/database
+```
+
+These configuration values are stored at `~/.sf/config.json` and can be read via the following command:
+
+```bash
+sf configure read
+sf c r
+```
+
 ### Shorthand
 All commands and flags support short versions.
 
