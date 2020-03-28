@@ -22,7 +22,14 @@ var (
 		Value:   "",
 	}
 
-	appVersion = "1.4.0"
+	confirmFlag = &cli.BoolFlag{
+		Name:    "no-confirm",
+		Aliases: []string{"n"},
+		Usage:   "Don't prompt for confirmation",
+		Value:   false,
+	}
+
+	appVersion = "2.0.0"
 )
 
 var searchFlags = []cli.Flag{
@@ -50,10 +57,6 @@ var searchFlags = []cli.Flag{
 func dd(message string) {
 	fmt.Println(message)
 	os.Exit(1)
-}
-
-func startupError(err error) {
-	dd("Failed to start sf: " + err.Error())
 }
 
 // Setup signal handlers so that users can back out of multi-step operations.
@@ -103,6 +106,7 @@ func main() {
 				Usage:   "Write a new note",
 				Flags: []cli.Flag{
 					tagFlag,
+					confirmFlag,
 				},
 				Action: handle.WriteNote,
 			},
@@ -111,11 +115,7 @@ func main() {
 				Aliases: []string{"d"},
 				Usage:   "Delete a note",
 				Flags: []cli.Flag{
-					&cli.BoolFlag{
-						Name:  "no-confirm",
-						Usage: "Don't prompt for confirmation",
-						Value: false,
-					},
+					confirmFlag,
 				},
 				Action: handle.DeleteNote,
 			},
@@ -153,13 +153,13 @@ func main() {
 			},
 			{
 				Name:    "configure",
-				Usage: "Configure short-form",
+				Usage:   "Configure short-form",
 				Aliases: []string{"c"},
 				Subcommands: []*cli.Command{
 					{
 						Name:    "read",
 						Aliases: []string{"r"},
-						Usage: "Display current configure",
+						Usage:   "Display current configure",
 						Action: func(ctx *cli.Context) error {
 							if pretty, err := json.MarshalIndent(userConfig, "", "	"); err != nil {
 								return err
@@ -171,7 +171,7 @@ func main() {
 					},
 					{
 						Name:    "database",
-						Usage: "Configure database properties",
+						Usage:   "Configure database properties",
 						Aliases: []string{"d"},
 						Flags: []cli.Flag{
 							&cli.StringFlag{

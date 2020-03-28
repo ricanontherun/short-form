@@ -80,10 +80,27 @@ func (handler handler) WriteNote(ctx *cli.Context) error {
 	}
 
 	note := models.NewNote(input.tags, input.content)
+
+	if !ctx.Bool(flagNoConfirm) {
+		fmt.Println()
+
+		printOptions := getPrintOptionsFromContext(ctx)
+		printOptions.SearchTags = []string{}
+		printOptions.SearchContent = ""
+
+		handler.printer.PrintNote(&note, printOptions)
+
+		if !handler.makeUserConfirmAction("Save Note?") {
+			fmt.Println("note not saved")
+			return nil
+		}
+	}
+
 	if err := handler.repository.WriteNote(note); err != nil {
 		return err
 	}
 
+	fmt.Println("note saved")
 	return nil
 }
 
@@ -165,9 +182,11 @@ func (handler handler) DeleteNote(ctx *cli.Context) error {
 		return err
 	}
 
-	if ok := handler.makeUserConfirmAction("This will delete 1 note, are you sure?"); !ok {
-		fmt.Println("cancelled")
-		return nil
+	if !ctx.Bool(flagNoConfirm) {
+		if ok := handler.makeUserConfirmAction("This will delete 1 note, are you sure?"); !ok {
+			fmt.Println("cancelled")
+			return nil
+		}
 	}
 
 	if err := handler.repository.DeleteNote(noteId); err != nil {
