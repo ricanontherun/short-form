@@ -37,8 +37,6 @@ You can also tag notes using a comma,separated,list of tags.
 ➜ sf w -t git,cli git rebase: git rebase COMMIT
 ```
 
-:w
-
 ##### Write confirmation
 
 When writing a note, you will be prompted to confirm the note contents before saving to disk. You can
