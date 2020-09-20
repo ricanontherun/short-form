@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/urfave/cli/v2"
+	"log"
 	"sort"
 	"testing"
 	"time"
@@ -74,22 +75,25 @@ func TestHandler_WriteNote(t *testing.T) {
 		h := NewHandlerBuilder(&r).Build()
 
 		err := h.WriteNote(context)
+
 		if test.expectedErr != nil {
 			r.AssertNotCalled(t, "WriteNote", mock.Anything)
-
 			assert.EqualValues(t, test.expectedErr, err)
 		} else {
-			r.AssertNumberOfCalls(t, "WriteNote", 1)
-			noteArgument := r.Calls[0].Arguments.Get(0).(models.Note)
+			if written := r.AssertNumberOfCalls(t, "WriteNote", 1); written {
+				noteArgument := r.Calls[0].Arguments.Get(0).(models.Note)
 
-			sort.Strings(noteArgument.Tags)
-			sort.Strings(test.expectedNote.Tags)
+				sort.Strings(noteArgument.Tags)
+				sort.Strings(test.expectedNote.Tags)
 
-			assert.EqualValues(t, test.expectedNote.Content, noteArgument.Content)
-			assert.EqualValues(t, test.expectedNote.Tags, noteArgument.Tags)
+				assert.EqualValues(t, test.expectedNote.Content, noteArgument.Content)
+				assert.EqualValues(t, test.expectedNote.Tags, noteArgument.Tags)
 
-			_, err := uuid.FromString(noteArgument.ID)
-			assert.Nil(t, err)
+				_, err := uuid.FromString(noteArgument.ID)
+				assert.Nil(t, err)
+			} else {
+				log.Fatalf("test=+%v, context=+%v", test, context)
+			}
 		}
 	}
 }
@@ -425,9 +429,9 @@ func TestHandler_EditNote(t *testing.T) {
 
 	r := repository.NewMockRepository()
 	note := &models.Note{
-		ID: noteId,
+		ID:      noteId,
 		Content: "note content",
-		Tags: []string{"music", "general"},
+		Tags:    []string{"music", "general"},
 	}
 
 	r.On("LookupNoteWithTags", noteId).Return(note, nil)

@@ -18,7 +18,6 @@ require (
 	github.com/prometheus/client_golang v1.3.0 // indirect
 	github.com/satori/go.uuid v1.2.0
 	github.com/stretchr/testify v1.4.0
-	github.com/syndtr/goleveldb v1.0.0
 	github.com/urfave/cli v1.22.2
 	github.com/urfave/cli/v2 v2.0.0
 	golang.org/x/text v0.3.2 // indirect

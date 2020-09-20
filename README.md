@@ -37,10 +37,10 @@ You can also tag notes using a comma,separated,list of tags.
 ➜ sf w -t git,cli git rebase: git rebase COMMIT
 ```
 
-##### Write confirmation
-
-When writing a note, you will be prompted to confirm the note contents before saving to disk. You can
-disable this functionality with `--no-confirm/-n`.
+The note content can be provided either as the last argument, or as a stdin pipe.
+```
+➜ cat something.txt | sf w
+```
 
 #### Searching Notes
 

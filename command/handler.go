@@ -9,18 +9,18 @@ import (
 	"github.com/ricanontherun/short-form/repository"
 	uuid "github.com/satori/go.uuid"
 	"github.com/urfave/cli/v2"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
-	"path/filepath"
 )
 
 type nowSupplier func() time.Time
 
 type handler struct {
 	repository      repository.Repository
-	nowSupplier     nowSupplier
+	nowSupplyingFn  nowSupplier
 	inputController UserInputController
 	printer         output.Printer
 }
@@ -29,7 +29,6 @@ type HandlerBuilder struct {
 	repository      repository.Repository
 	nowSupplier     nowSupplier
 	inputController UserInputController
-	printer         output.Printer
 }
 
 func NewHandlerBuilder(repository repository.Repository) *HandlerBuilder {
@@ -52,9 +51,9 @@ func (builder *HandlerBuilder) Build() handler {
 	handler.repository = builder.repository
 
 	if builder.nowSupplier != nil {
-		handler.nowSupplier = builder.nowSupplier
+		handler.nowSupplyingFn = builder.nowSupplier
 	} else {
-		handler.nowSupplier = DefaultNowSupplier
+		handler.nowSupplyingFn = DefaultNowSupplier
 	}
 
 	if builder.inputController != nil {
@@ -73,30 +72,17 @@ func DefaultNowSupplier() time.Time {
 }
 
 func (handler handler) WriteNote(ctx *cli.Context) error {
-	input := getInputFromContext(ctx)
+	input, err := getContentFromInput(ctx)
+
+	if err != nil {
+		return err
+	}
 
 	if len(input.content) == 0 {
 		return errEmptyContent
 	}
 
-	note := models.NewNote(input.tags, input.content)
-
-	if !ctx.Bool(flagNoConfirm) {
-		fmt.Println()
-
-		printOptions := getPrintOptionsFromContext(ctx)
-		printOptions.SearchTags = []string{}
-		printOptions.SearchContent = ""
-
-		handler.printer.PrintNote(&note, printOptions)
-
-		if !handler.makeUserConfirmAction("Save Note?") {
-			fmt.Println("note not saved")
-			return nil
-		}
-	}
-
-	if err := handler.repository.WriteNote(note); err != nil {
+	if err := handler.repository.WriteNote(models.NewNote(input.tags, input.content)); err != nil {
 		return err
 	}
 
@@ -109,7 +95,7 @@ func (handler handler) writeNote(note models.Note) error {
 }
 
 func (handler handler) SearchToday(ctx *cli.Context) error {
-	now := handler.nowSupplier()
+	now := handler.nowSupplyingFn()
 
 	searchFilters := getSearchFiltersFromContext(ctx)
 	dateRange := models.GetRangeToday(now)
@@ -127,7 +113,7 @@ func (handler handler) SearchToday(ctx *cli.Context) error {
 func (handler handler) SearchYesterday(ctx *cli.Context) error {
 	baseFilters := getSearchFiltersFromContext(ctx)
 
-	dateRange := models.GetRangeYesterday(handler.nowSupplier())
+	dateRange := models.GetRangeYesterday(handler.nowSupplyingFn())
 	baseFilters.DateRange = &dateRange
 
 	if notes, err := handler.repository.SearchNotes(baseFilters); err != nil {
@@ -149,7 +135,7 @@ func (handler handler) SearchNotes(ctx *cli.Context) error {
 			return errInvalidAge
 		} else {
 			ageDays, _ := strconv.Atoi(strings.TrimRight(age, "d"))
-			end := handler.nowSupplier()
+			end := handler.nowSupplyingFn()
 			start := end.AddDate(0, 0, -ageDays)
 
 			searchFilters.DateRange = &models.DateRange{

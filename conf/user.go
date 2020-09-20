@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ricanontherun/short-form/logging"
 	"github.com/ricanontherun/short-form/utils"
 	"io/ioutil"
 	"os"
@@ -63,10 +64,12 @@ func newUserConfig(user *user.User) Config {
 func ReadUserConfig() (Config, error) {
 	systemUser, err := user.Current()
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("failed to read user's home directory, %s", err.Error()))
+		return nil, errors.New(fmt.Sprintf("failed to read user's home directory: %s", err.Error()))
 	}
 
 	configFilePath := path.Join(systemUser.HomeDir, shortFormConfigurationPath)
+	logging.Debug("reading configuration at " + configFilePath)
+
 	_, err = os.Stat(configFilePath)
 
 	existed, err := utils.EnsureFilePath(configFilePath)

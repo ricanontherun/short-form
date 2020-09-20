@@ -74,7 +74,7 @@ func makeInsertValuesForTags(noteId string, tags []string) string {
 }
 
 func (repository sqlRepository) WriteNote(note models.Note) error {
-	return repository.executeWithinTransaction(func(tx *sql.Tx) error {
+	return repository.transaction(func(tx *sql.Tx) error {
 		if err := repository.writeNote(tx, note); err != nil {
 			return err
 		}
@@ -104,7 +104,7 @@ func (repository sqlRepository) writeNote(tx *sql.Tx, note models.Note) error {
 }
 
 func (repository sqlRepository) TagNote(note models.Note, tags []string) error {
-	return repository.executeWithinTransaction(func(tx *sql.Tx) error {
+	return repository.transaction(func(tx *sql.Tx) error {
 		if err := repository.deleteNoteTags(tx, note.ID); err != nil {
 			return err
 		}
@@ -133,7 +133,7 @@ func (repository sqlRepository) writeNoteTags(tx *sql.Tx, noteId string, tags []
 	return nil
 }
 
-func (repository sqlRepository) executeWithinTransaction(callback func(*sql.Tx) error) error {
+func (repository sqlRepository) transaction(callback func(*sql.Tx) error) error {
 	if transaction, err := repository.db.GetConnection().Begin(); err != nil {
 		return err
 	} else {
@@ -200,7 +200,7 @@ func (repository sqlRepository) getNoteTags(noteId string) ([]string, error) {
 }
 
 func (repository sqlRepository) DeleteNote(noteId string) error {
-	return repository.executeWithinTransaction(func(tx *sql.Tx) error {
+	return repository.transaction(func(tx *sql.Tx) error {
 		stmt, err := tx.Prepare(sqlDeleteNote)
 		if err != nil {
 			return err

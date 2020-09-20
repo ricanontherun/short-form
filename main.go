@@ -59,7 +59,8 @@ func dd(message string) {
 	os.Exit(1)
 }
 
-// Setup signal handlers so that users can back out of multi-step operations.
+// Setup support for ctrl-c interrupt signals which are ignored whilst
+// waiting for user input by default.
 func setupSignalHandlers() {
 	signalChan := make(chan os.Signal, 2)
 	signal.Notify(signalChan, os.Interrupt, syscall.SIGTERM)
@@ -80,7 +81,7 @@ func main() {
 
 	repo, err := repository.NewSqlRepository(db)
 	if err != nil {
-		log.Fatalf("Failed to open database: %s", err.Error())
+		log.Fatalf("Failed to open database: %s\n", err.Error())
 	}
 
 	handle := command.NewHandlerBuilder(repo).Build()

@@ -14,13 +14,19 @@ func NewMockRepository() mockRepository {
 }
 
 func (repository *mockRepository) WriteNote(note models.Note) error {
-	repository.Called(note)
-	return nil
+	return repository.Called(note).Error(0)
 }
 
 func (repository *mockRepository) SearchNotes(ctx models.SearchFilters) ([]*models.Note, error) {
-	repository.Called(ctx)
-	return nil, nil
+	args := repository.Called(ctx)
+
+	notesArgs := args.Get(0)
+
+	if notesArgs != nil {
+		return args.Get(0).([]*models.Note), args.Error(0)
+	} else {
+		return nil, args.Error(0)
+	}
 }
 
 func (repository *mockRepository) DeleteNote(noteId string) error {
