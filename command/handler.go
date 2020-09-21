@@ -1,6 +1,7 @@
 package command
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"github.com/ricanontherun/short-form/conf"
@@ -9,6 +10,8 @@ import (
 	"github.com/ricanontherun/short-form/repository"
 	uuid "github.com/satori/go.uuid"
 	"github.com/urfave/cli/v2"
+	"log"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -259,4 +262,29 @@ func (handler handler) ConfigureDatabase(cli *cli.Context, conf conf.Config) err
 	}
 
 	return conf.Save()
+}
+
+func (handler handler) StreamNotes(cli *cli.Context) error {
+	tags := getTagsFromContext(cli)
+	input := ""
+	reader := bufio.NewReader(os.Stdin)
+
+	fmt.Println("streaming notes. Separated by newlines, terminated by EOL")
+
+	for {
+		fmt.Print("-> ")
+		input, _ = reader.ReadString('\n')
+		trimmedInput := strings.Replace(strings.TrimSpace(input), "\n", "", -1)
+
+		if len(trimmedInput) == 0 {
+			break
+		}
+
+		note := models.NewNote(tags, trimmedInput)
+		if err := handler.repository.WriteNote(note); err != nil {
+			log.Println("failed to save note: " + err.Error())
+		}
+	}
+
+	return nil
 }

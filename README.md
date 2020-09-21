@@ -90,7 +90,13 @@ This is a secret note
 
 #### Delete a note
 ```
-➜ sf d NOTEID
+➜ sf d NOTE_ID
+```
+
+#### Streaming Notes
+```
+➜ sf st -t notes,some-documentary
+...streaming instruction
 ```
 
 #### Pretty Print (colors)

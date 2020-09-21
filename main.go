@@ -84,7 +84,7 @@ func main() {
 		log.Fatalf("Failed to open database: %s\n", err.Error())
 	}
 
-	handle := command.NewHandlerBuilder(repo).Build()
+	handler := command.NewHandlerBuilder(repo).Build()
 
 	setupSignalHandlers()
 
@@ -109,7 +109,7 @@ func main() {
 					tagFlag,
 					confirmFlag,
 				},
-				Action: handle.WriteNote,
+				Action: handler.WriteNote,
 			},
 			{
 				Name:    "delete",
@@ -118,13 +118,13 @@ func main() {
 				Flags: []cli.Flag{
 					confirmFlag,
 				},
-				Action: handle.DeleteNote,
+				Action: handler.DeleteNote,
 			},
 			{
 				Name:    "edit",
 				Aliases: []string{"e"},
 				Usage:   "Edit a note's content",
-				Action:  handle.EditNote,
+				Action:  handler.EditNote,
 			},
 			{
 				Name:    "search",
@@ -137,7 +137,7 @@ func main() {
 						Usage:   "Search for notes written today",
 						Aliases: []string{"t"},
 						Flags:   searchFlags,
-						Action:  handle.SearchToday,
+						Action:  handler.SearchToday,
 					},
 
 					// Search against yesterday's notes.
@@ -146,11 +146,11 @@ func main() {
 						Usage:   "Search for notes written yesterday",
 						Aliases: []string{"y"},
 						Flags:   searchFlags,
-						Action:  handle.SearchYesterday,
+						Action:  handler.SearchYesterday,
 					},
 				},
 				Flags:  searchFlags,
-				Action: handle.SearchNotes,
+				Action: handler.SearchNotes,
 			},
 			{
 				Name:    "configure",
@@ -185,9 +185,18 @@ func main() {
 							},
 						},
 						Action: func(ctx *cli.Context) error {
-							return handle.ConfigureDatabase(ctx, userConfig)
+							return handler.ConfigureDatabase(ctx, userConfig)
 						},
 					},
+				},
+			},
+			{
+				Name:    "stream",
+				Usage:   "Stream notes",
+				Aliases: []string{"st"},
+				Action:  handler.StreamNotes,
+				Flags: []cli.Flag{
+					tagFlag,
 				},
 			},
 		},
