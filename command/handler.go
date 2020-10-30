@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ricanontherun/short-form/conf"
+	"github.com/ricanontherun/short-form/logging"
 	"github.com/ricanontherun/short-form/models"
 	"github.com/ricanontherun/short-form/output"
 	"github.com/ricanontherun/short-form/repository"
@@ -159,32 +160,69 @@ func (handler handler) SearchNotes(ctx *cli.Context) error {
 
 func (handler handler) DeleteNote(ctx *cli.Context) error {
 	noteId := strings.TrimSpace(ctx.Args().First())
-	if len(noteId) <= 0 {
+	noteIdLen := len(noteId)
+
+	if noteIdLen == 0 {
 		return errMissingNoteId
 	}
 
-	if _, err := uuid.FromString(noteId); err != nil {
+	if noteIdLen != 8 && noteIdLen != len(uuid.NamespaceDNS.String()) {
 		return errInvalidNoteId
 	}
 
-	if _, err := handler.repository.LookupNote(noteId); err != nil {
-		return err
+	if noteIdLen == 8 { // short id
+		notes, err := handler.repository.LookupNotesByShortId(noteId)
+		if err != nil {
+			return fmt.Errorf("failed to find notes beginning with '%s': %s", noteId, err.Error())
+		}
+		numNotes := len(notes)
+
+		switch numNotes {
+		case 0:
+			return errNoteNotFound
+		case 1: // Normal case
+			return handler.deleteNote(notes[0], !ctx.Bool(flagNoConfirm))
+		default: // short ID collision
+			fmt.Printf("%d notes were found starting with '%s', please try again using the full ID\n", numNotes, noteId)
+			printOptions := output.NewOptions()
+			printOptions.FullID = true
+			printOptions.Search = struct {
+				PrintSummary bool
+			}{PrintSummary: false}
+			handler.printer.PrintNotes(notes, printOptions)
+		}
+	} else if noteIdLen == len(uuid.NamespaceDNS.String()) { // full id
+		note, err := handler.repository.LookupNote(noteId)
+		if err != nil {
+			return err
+		}
+		return handler.deleteNote(note, !ctx.Bool(flagNoConfirm))
 	}
 
-	if !ctx.Bool(flagNoConfirm) {
-		if ok := handler.makeUserConfirmAction("This will delete 1 note, are you sure?"); !ok {
-			fmt.Println("cancelled")
+	return nil
+}
+
+func (handler handler) deleteNote(note *models.Note, confirm bool) error {
+	logging.Debug("deleting note using full id " + note.ID)
+
+	if confirm {
+		fmt.Println("The following note will be deleted:")
+		fmt.Println()
+
+		handler.printer.PrintNote(note, output.Options{})
+
+		if ok := handler.confirmAction("Proceed?"); !ok {
+			fmt.Println("canceled")
 			return nil
 		}
 	}
 
-	if err := handler.repository.DeleteNote(noteId); err != nil {
-		return err
-	} else {
-		fmt.Println("ok")
+	err := handler.repository.DeleteNote(note.ID)
+	if err == nil {
+		fmt.Println("note deleted")
 	}
 
-	return nil
+	return err
 }
 
 func (handler handler) EditNote(ctx *cli.Context) error {
@@ -210,7 +248,7 @@ func (handler handler) EditNote(ctx *cli.Context) error {
 	contentChanged := false
 	tagsChanged := false
 
-	if handler.makeUserConfirmAction("update content?") {
+	if handler.confirmAction("update content?") {
 		newContent := handler.promptUser("new content: ")
 
 		if len(newContent) != 0 {
@@ -219,7 +257,7 @@ func (handler handler) EditNote(ctx *cli.Context) error {
 		}
 	}
 
-	if handler.makeUserConfirmAction("update tags?") {
+	if handler.confirmAction("update tags?") {
 		newTagsString := handler.promptUser("new tags: ")
 
 		if len(newTagsString) != 0 {

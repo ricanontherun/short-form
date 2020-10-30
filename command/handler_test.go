@@ -312,7 +312,9 @@ func TestHandler_DeleteNote(t *testing.T) {
 	input.On("GetString", mock.Anything).Return("y")
 
 	for _, test := range tests {
-		var flags = map[string]string{}
+		var flags = map[string]string{
+			"no-confirm": "true",
+		}
 
 		context := createAppContext(flags, test.inputArgs)
 		r := repository.NewMockRepository()

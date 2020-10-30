@@ -14,7 +14,5 @@ const (
 	flagTags      = "tags"
 	flagAge       = "age"
 	flagContent   = "content"
-	flagDetailed  = "detailed"
-	flagPretty    = "pretty"
 	flagNoConfirm = "no-confirm"
 )

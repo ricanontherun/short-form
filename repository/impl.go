@@ -295,6 +295,7 @@ func (repository sqlRepository) UpdateNote(note models.Note) error {
 	if stmt, err := repository.db.GetConnection().Prepare(sqlUpdateNoteContent); err != nil {
 		return err
 	} else {
+		defer stmt.Close()
 		if results, err := stmt.Exec(note.Content, note.ID); err != nil {
 			return err
 		} else if rows, err := results.RowsAffected(); err != nil {
@@ -305,6 +306,37 @@ func (repository sqlRepository) UpdateNote(note models.Note) error {
 	}
 
 	return nil
+}
+
+func (repository sqlRepository) LookupNotesByShortId(shortId string) ([]*models.Note, error) {
+	if stmt, err := repository.db.GetConnection().Prepare(sqlSearchByShortId); err != nil {
+		return nil, err
+	} else {
+		defer stmt.Close()
+
+		rs, err := stmt.Query(shortId)
+		if err != nil {
+			return nil, err
+		}
+
+		var notes []*models.Note
+		for rs.Next() {
+			var note models.Note
+
+			if scanErr := rs.Scan(&note.ID, &note.Timestamp, &note.Content); scanErr != nil {
+				return nil, scanErr
+			}
+
+			if tags, err := repository.getNoteTags(note.ID); err != nil {
+				return nil, err
+			} else {
+				note.Tags = tags
+			}
+
+			notes = append(notes, &note)
+		}
+		return notes, nil
+	}
 }
 
 // Initialize the database structure.

@@ -20,10 +20,13 @@ func NewPrinter() Printer {
 
 func (printer printer) PrintNotes(notes []*models.Note, options Options) {
 	noteCount := len(notes)
-	if noteCount == 1 {
-		fmt.Println("1 note found")
-	} else {
-		fmt.Println(fmt.Sprintf("%d notes found", noteCount))
+
+	if options.Search.PrintSummary {
+		if noteCount == 1 {
+			fmt.Println("1 note found")
+		} else {
+			fmt.Println(fmt.Sprintf("%d notes found", noteCount))
+		}
 	}
 
 	if noteCount > 0 {
@@ -36,23 +39,16 @@ func (printer printer) PrintNotes(notes []*models.Note, options Options) {
 }
 
 func (printer printer) PrintNote(note *models.Note, options Options) {
-	bits := make([]string, 0, 4)
+	lineParts := make([]string, 0, 4)
+	lineParts = append(lineParts, color.MagentaString(note.Timestamp.Format("Jan 02 2006 03:04 PM")))
 
-	timestamp := note.Timestamp.Format("Jan 02 2006 03:04 PM")
-	if options.Pretty {
-		timestamp = color.MagentaString(timestamp)
+	// Display short ID unless --full-id flag is provided.
+	noteId := note.ID[0:8]
+	if options.FullID {
+		noteId = note.ID
 	}
-	bits = append(bits, timestamp)
-
-	if options.Detailed {
-		noteId := note.ID
-
-		if options.Pretty {
-			noteId = color.CyanString(noteId)
-		}
-
-		bits = append(bits, noteId)
-	}
+	noteId = color.CyanString(noteId)
+	lineParts = append(lineParts, noteId)
 
 	if len(note.Tags) > 0 {
 		// Bold and underline any matching tags.
@@ -69,36 +65,26 @@ func (printer printer) PrintNote(note *models.Note, options Options) {
 
 			for _, noteTag := range note.Tags {
 				if _, exists := searchTagMap[noteTag]; exists {
-					highlightedTag := printer.Sprint(noteTag)
-					if options.Pretty {
-						highlightedTag = bluePrinter.Sprint(highlightedTag)
-					}
-
+					highlightedTag := bluePrinter.Sprint(printer.Sprint(noteTag))
 					processedTags = append(processedTags, highlightedTag)
 				} else {
 					processedTags = append(processedTags, noteTag)
 				}
 			}
-
 			tagsString = strings.Join(processedTags, ", ")
 		} else {
 			tagsString = strings.Join(note.Tags, ", ")
 		}
 
-		bits = append(bits, tagsString)
+		lineParts = append(lineParts, tagsString)
 	}
 
-	fmt.Println(strings.Join(bits, " | "))
+	fmt.Println(strings.Join(lineParts, " - "))
 
 	contentString := note.Content
-
 	if options.SearchContent != "" {
 		printer := color.New(color.Bold, color.Underline)
-
-		if options.Pretty {
-			printer.Add(color.FgYellow)
-		}
-
+		printer.Add(color.FgYellow)
 		contentString = highlightNeedle(note.Content, options.SearchContent, printer)
 	}
 

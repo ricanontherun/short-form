@@ -34,8 +34,8 @@ func (repository *mockRepository) DeleteNote(noteId string) error {
 }
 
 func (repository *mockRepository) LookupNote(noteId string) (*models.Note, error) {
-	repository.Called(noteId)
-	return nil, nil
+	args := repository.Called(noteId)
+	return args.Get(0).(*models.Note), args.Error(1)
 }
 
 func (repository *mockRepository) LookupNoteWithTags(noteId string) (*models.Note, error) {
@@ -49,6 +49,12 @@ func (repository *mockRepository) UpdateNote(note models.Note) error {
 
 func (repository *mockRepository) TagNote(note models.Note, tags []string) error {
 	return nil
+}
+
+func (repository *mockRepository) LookupNotesByShortId(shortId string) ([]*models.Note, error) {
+	args := repository.Called(shortId)
+
+	return nil, args.Error(1)
 }
 
 func (repository *mockRepository) Close() {

@@ -18,12 +18,10 @@ type parsedInput struct {
 }
 
 func getPrintOptionsFromContext(ctx *cli.Context) output.Options {
-	return output.Options{
-		SearchContent: ctx.String(flagContent),
-		Detailed:      ctx.Bool(flagDetailed),
-		Pretty:        ctx.Bool(flagPretty),
-		SearchTags:    getTagsFromContext(ctx),
-	}
+	options := output.NewOptions()
+	options.SearchContent = ctx.String(flagContent)
+	options.SearchTags = getTagsFromContext(ctx)
+	return options
 }
 
 // Prompt the user for input.
@@ -35,7 +33,7 @@ func (handler handler) promptUser(message string) string {
 
 // Prompt the user with a confirmation message.
 // Returns whether the user answered 'y' or 'yes'
-func (handler handler) makeUserConfirmAction(message string) bool {
+func (handler handler) confirmAction(message string) bool {
 	return utils.SliceContainsElement(handler.promptUser(message+" [y/n]: "), []string{
 		"yes",
 		"y",
@@ -52,7 +50,6 @@ func getContentFromInput(ctx *cli.Context) (*parsedInput, error) {
 
 	args := ctx.Args().Slice()
 	if len(args) != 0 {
-		fmt.Println("args: " + strings.Join(args, " "))
 		content = strings.Join(args, " ")
 	} else if stdinStat.Mode()&os.ModeCharDevice != 0 || stdinStat.Size() != 0 {
 		stdinReader := bufio.NewReader(os.Stdin)

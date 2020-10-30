@@ -60,9 +60,9 @@ const sqlDeleteNoteTags = "DELETE FROM note_tags WHERE note_tags.note_id = ?"
 const sqlGetNoteTags = `SELECT GROUP_CONCAT(DISTINCT tag) as tags FROM note_tags WHERE note_id = ? LIMIT 1`
 
 const sqlGetNote = `
-SELECT notes.id, timestamp, content
+SELECT id, timestamp, content
 FROM notes
-WHERE notes.id = ?
+WHERE id = ?
 `
 
 const sqlUpdateNoteContent = `
@@ -70,4 +70,10 @@ UPDATE notes
 SET
 	content = ?
 WHERE id = ?
+`
+
+const sqlSearchByShortId = `
+SELECT id, timestamp, content
+FROM notes 
+WHERE id LIKE ? || '%'
 `

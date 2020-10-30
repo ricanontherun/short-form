@@ -29,7 +29,7 @@ var (
 		Value:   false,
 	}
 
-	appVersion = "2.0.0"
+	appVersion = "3.0.0"
 )
 
 var searchFlags = []cli.Flag{
@@ -45,12 +45,6 @@ var searchFlags = []cli.Flag{
 		Usage:   "Search by age of note, e.g 2d for 2 days old",
 		Aliases: []string{"a"},
 		Value:   "",
-	},
-	&cli.BoolFlag{
-		Name:    "detailed",
-		Aliases: []string{"d"},
-		Usage:   "Display detailed note information",
-		Value:   false,
 	},
 }
 
@@ -93,13 +87,6 @@ func main() {
 		Usage:       "A command-line journal for bite sized thoughts",
 		Description: "short-form allows you to write, tag and search for short notes via the command line.",
 		Version:     appVersion,
-		Flags: []cli.Flag{
-			&cli.BoolFlag{
-				Name:    "pretty",
-				Aliases: []string{"p"},
-				Value:   false,
-			},
-		},
 		Commands: []*cli.Command{
 			{
 				Name:    "write",
