@@ -1,6 +1,9 @@
 package utils
 
-import "testing"
+import (
+	"github.com/stretchr/testify/assert"
+	"testing"
+)
 
 func TestSet(t *testing.T) {
 	set := NewSet()
@@ -24,10 +27,7 @@ func TestSet(t *testing.T) {
 		{"test", false},
 	}
 
-	if len(setEntries) != 4 {
-		t.Error("There should be 3 entries in the set")
-		t.FailNow()
-	}
+	assert.EqualValues(t, len(setEntries), 4)
 
 	for _, test := range tests {
 		if set.Has(test.elem) != test.shouldExist {

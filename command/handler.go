@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"github.com/ricanontherun/short-form/conf"
+	"github.com/ricanontherun/short-form/config"
 	"github.com/ricanontherun/short-form/logging"
 	"github.com/ricanontherun/short-form/models"
 	"github.com/ricanontherun/short-form/output"
@@ -190,6 +190,7 @@ func (handler handler) DeleteNote(ctx *cli.Context) error {
 				PrintSummary bool
 			}{PrintSummary: false}
 			handler.printer.PrintNotes(notes, printOptions)
+			return errShortIdCollision
 		}
 	} else if noteIdLen == len(uuid.NamespaceDNS.String()) { // full id
 		note, err := handler.repository.LookupNote(noteId)
@@ -284,7 +285,7 @@ func (handler handler) EditNote(ctx *cli.Context) error {
 	return nil
 }
 
-func (handler handler) ConfigureDatabase(cli *cli.Context, conf conf.Config) error {
+func (handler handler) ConfigureDatabase(cli *cli.Context, conf config.Config) error {
 	path := cli.String("path")
 	if len(path) == 0 {
 		return errors.New("invalid path, empty")

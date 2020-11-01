@@ -371,6 +371,32 @@ func TestHandler_DeleteNote_Validation(t *testing.T) {
 	}
 }
 
+func TestHandler_DeleteNote_ShortId(t *testing.T) {
+	// Given a short ID which belongs to a single note
+	var fullId = uuid.NewV4().String()
+	var shortId = fullId[0:8]
+
+	var flags = map[string]string{
+		"no-confirm": "true",
+	}
+	var context = createAppContext(flags, []string{shortId})
+
+	var mockRepository = repository.NewMockRepository()
+	mockRepository.On("LookupNotesByShortId", shortId).Return([]*models.Note{
+		{ID: fullId},
+	}, nil)
+	mockRepository.On("DeleteNote", fullId).Return(nil)
+
+	// when we delete a note by that short id
+	var handler = NewHandlerBuilder(&mockRepository).Build()
+	err := handler.DeleteNote(context)
+
+	// it should successfully call the repository delete method using the full ID
+	// returned from the note lookup
+	assert.Nil(t, err)
+	mockRepository.AssertCalled(t, "DeleteNote", fullId)
+}
+
 func TestHandler_EditNote_MissingNoteId(t *testing.T) {
 	var flags = map[string]string{}
 	context := createAppContext(flags, []string{})

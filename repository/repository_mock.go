@@ -23,7 +23,7 @@ func (repository *mockRepository) SearchNotes(ctx models.SearchFilters) ([]*mode
 	notesArgs := args.Get(0)
 
 	if notesArgs != nil {
-		return args.Get(0).([]*models.Note), args.Error(0)
+		return notesArgs.([]*models.Note), args.Error(0)
 	} else {
 		return nil, args.Error(0)
 	}
@@ -53,8 +53,13 @@ func (repository *mockRepository) TagNote(note models.Note, tags []string) error
 
 func (repository *mockRepository) LookupNotesByShortId(shortId string) ([]*models.Note, error) {
 	args := repository.Called(shortId)
+	notes := args.Get(0)
 
-	return nil, args.Error(1)
+	if notes != nil {
+		return notes.([]*models.Note), args.Error(1)
+	} else {
+		return nil, args.Error(1)
+	}
 }
 
 func (repository *mockRepository) Close() {

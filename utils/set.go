@@ -4,10 +4,8 @@ package utils
 type Set interface {
 	// Add a string to the set
 	Add(entry string)
-
 	// Check if an element exists in the set
 	Has(elem string) bool
-
 	// Return a slice of all set entries
 	Entries() []string
 }

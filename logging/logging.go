@@ -6,7 +6,7 @@ import (
 	"sync"
 )
 
-var allowDebugLogs bool = false
+var allowDebugLogs = false
 var once sync.Once
 
 func Debug(msg string) {

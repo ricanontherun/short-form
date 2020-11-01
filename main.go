@@ -4,13 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/ricanontherun/short-form/command"
-	"github.com/ricanontherun/short-form/conf"
+	"github.com/ricanontherun/short-form/config"
 	"github.com/ricanontherun/short-form/database"
 	"github.com/ricanontherun/short-form/repository"
 	"github.com/urfave/cli/v2"
 	"log"
 	"os"
 	"os/signal"
+	"os/user"
 	"syscall"
 )
 
@@ -66,9 +67,14 @@ func setupSignalHandlers() {
 }
 
 func main() {
-	userConfig, err := conf.ReadUserConfig()
-	if err != nil {
-		log.Fatalln(err)
+	systemUser, systemUserErr := user.Current()
+	if systemUserErr != nil {
+		log.Fatalf("failed to read user's home directory: %s\n", systemUserErr.Error())
+	}
+
+	userConfig, readConfigErr := config.ReadUserConfig(systemUser.HomeDir)
+	if readConfigErr != nil {
+		log.Fatalln(readConfigErr)
 	}
 
 	db := database.NewDatabase(userConfig.GetDatabasePath())
