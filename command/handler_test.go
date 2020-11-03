@@ -319,7 +319,7 @@ func TestHandler_DeleteNote(t *testing.T) {
 		context := createAppContext(flags, test.inputArgs)
 		r := repository.NewMockRepository()
 
-		r.On("LookupNote", noteId).Return(&models.Note{
+		r.On("LookupNoteWithTags", noteId).Return(&models.Note{
 			ID: noteId,
 		}, nil)
 
@@ -329,7 +329,7 @@ func TestHandler_DeleteNote(t *testing.T) {
 		err := h.DeleteNote(context)
 
 		assert.Nil(t, err)
-		r.AssertNumberOfCalls(t, "LookupNote", 1)
+		r.AssertNumberOfCalls(t, "LookupNoteWithTags", 1)
 		r.AssertCalled(t, "DeleteNote", noteId)
 	}
 }

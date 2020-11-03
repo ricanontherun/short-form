@@ -9,7 +9,6 @@ import (
 	"github.com/ricanontherun/short-form/models"
 	"github.com/ricanontherun/short-form/output"
 	"github.com/ricanontherun/short-form/repository"
-	uuid "github.com/satori/go.uuid"
 	"github.com/urfave/cli/v2"
 	"log"
 	"os"
@@ -166,41 +165,15 @@ func (handler handler) DeleteNote(ctx *cli.Context) error {
 		return errMissingNoteId
 	}
 
-	if noteIdLen != 8 && noteIdLen != len(uuid.NamespaceDNS.String()) {
+	if !models.IsValidId(noteId) {
 		return errInvalidNoteId
 	}
 
-	if noteIdLen == 8 { // short id
-		notes, err := handler.repository.LookupNotesByShortId(noteId)
-		if err != nil {
-			return fmt.Errorf("failed to find notes beginning with '%s': %s", noteId, err.Error())
-		}
-		numNotes := len(notes)
-
-		switch numNotes {
-		case 0:
-			return errNoteNotFound
-		case 1: // Normal case
-			return handler.deleteNote(notes[0], !ctx.Bool(flagNoConfirm))
-		default: // short ID collision
-			fmt.Printf("%d notes were found starting with '%s', please try again using the full ID\n", numNotes, noteId)
-			printOptions := output.NewOptions()
-			printOptions.FullID = true
-			printOptions.Search = struct {
-				PrintSummary bool
-			}{PrintSummary: false}
-			handler.printer.PrintNotes(notes, printOptions)
-			return errShortIdCollision
-		}
-	} else if noteIdLen == len(uuid.NamespaceDNS.String()) { // full id
-		note, err := handler.repository.LookupNote(noteId)
-		if err != nil {
-			return err
-		}
+	if note, err := handler.findNoteById(noteId); err != nil {
+		return err
+	} else {
 		return handler.deleteNote(note, !ctx.Bool(flagNoConfirm))
 	}
-
-	return nil
 }
 
 func (handler handler) deleteNote(note *models.Note, confirm bool) error {
@@ -228,21 +201,19 @@ func (handler handler) deleteNote(note *models.Note, confirm bool) error {
 
 func (handler handler) EditNote(ctx *cli.Context) error {
 	noteId := ctx.Args().First()
+	noteIdLen := len(noteId)
 
-	if len(noteId) == 0 {
+	if noteIdLen == 0 {
 		return errMissingNoteId
 	}
 
-	if _, err := uuid.FromString(noteId); err != nil {
+	if !models.IsValidId(noteId) {
 		return errInvalidNoteId
 	}
 
-	note, err := handler.repository.LookupNoteWithTags(noteId)
-	if err != nil {
-		if err == repository.ErrNoteNotFound {
-			return errNoteNotFound
-		}
-
+	var note *models.Note
+	var err error
+	if note, err = handler.findNoteById(noteId); err != nil {
 		return err
 	}
 
@@ -326,4 +297,42 @@ func (handler handler) StreamNotes(cli *cli.Context) error {
 	}
 
 	return nil
+}
+
+// Attempt to find a note by it's ID, automatically resolving short vs long IDs.
+func (handler *handler) findNoteById(noteId string) (*models.Note, error) {
+	var note *models.Note
+	var noteIdLen = len(noteId)
+
+	if noteIdLen == models.ShortIdLength {
+		if notes, err := handler.repository.LookupNotesByShortId(noteId); err != nil {
+			return nil, err
+		} else {
+			var notesLen = len(notes)
+
+			switch notesLen {
+			case 0:
+				return nil, errNoteNotFound
+			case 1:
+				note = notes[0]
+			default:
+				fmt.Printf("The following notes were found having IDs starting with '%s', please try again using the full ID\n",  noteId)
+				printOptions := output.NewOptions()
+				printOptions.FullID = true
+				printOptions.Search = struct {
+					PrintSummary bool
+				}{PrintSummary: false}
+				handler.printer.PrintNotes(notes, printOptions)
+				return nil, errShortIdCollision
+			}
+		}
+	} else {
+		var err error
+		note, err = handler.repository.LookupNoteWithTags(noteId)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return note, nil
 }

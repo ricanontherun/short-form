@@ -76,7 +76,9 @@ func (printer printer) PrintNote(note *models.Note, options Options) {
 			tagsString = strings.Join(note.Tags, ", ")
 		}
 
-		lineParts = append(lineParts, tagsString)
+		if len(tagsString) != 0 {
+			lineParts = append(lineParts, tagsString)
+		}
 	}
 
 	fmt.Println(strings.Join(lineParts, " - "))

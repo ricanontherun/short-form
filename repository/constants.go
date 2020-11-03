@@ -48,7 +48,7 @@ LEFT JOIN note_tags
 %s
 COLLATE NOCASE
 GROUP BY notes.id
-ORDER BY notes.timestamp
+ORDER BY notes.timestamp DESC
 `
 
 const sqlUpdateNote = `UPDATE notes SET content=? WHERE id=?`
@@ -57,7 +57,7 @@ const sqlDeleteNote = "DELETE FROM notes WHERE notes.id = ?"
 
 const sqlDeleteNoteTags = "DELETE FROM note_tags WHERE note_tags.note_id = ?"
 
-const sqlGetNoteTags = `SELECT GROUP_CONCAT(DISTINCT tag) as tags FROM note_tags WHERE note_id = ? LIMIT 1`
+const sqlGetNoteTags = `SELECT COALESCE(GROUP_CONCAT(DISTINCT tag), "") as tags FROM note_tags WHERE note_id = ? LIMIT 1`
 
 const sqlGetNote = `
 SELECT id, timestamp, content
@@ -76,4 +76,5 @@ const sqlSearchByShortId = `
 SELECT id, timestamp, content
 FROM notes 
 WHERE id LIKE ? || '%'
+ORDER BY timestamp DESC
 `
