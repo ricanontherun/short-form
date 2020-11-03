@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/ricanontherun/short-form/command"
 	"github.com/ricanontherun/short-form/config"
@@ -19,7 +20,7 @@ var (
 	tagFlag = &cli.StringFlag{
 		Name:    "tags",
 		Aliases: []string{"t"},
-		Usage:   "comma,separated,list of tags to filter on.",
+		Usage:   "comma,separated,list of tags to filter on",
 		Value:   "",
 	}
 
@@ -93,6 +94,19 @@ func main() {
 		Usage:       "A command-line journal for bite sized thoughts",
 		Description: "short-form allows you to write, tag and search for short notes via the command line.",
 		Version:     appVersion,
+		Before: func(context *cli.Context) error {
+			// Determine the database to use based on --database flag (optional).
+			fmt.Println("running before the commands")
+			fmt.Println(context.String("database"))
+			return errors.New("yep")
+		},
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name: "database",
+				Aliases: []string{"d"},
+				Usage: "override the configured database on a per-command basis",
+			},
+		},
 		Commands: []*cli.Command{
 			{
 				Name:    "write",

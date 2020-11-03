@@ -2,8 +2,9 @@ package database
 
 import (
 	"database/sql"
+	"fmt"
+	"github.com/ricanontherun/short-form/logging"
 	"github.com/ricanontherun/short-form/utils"
-	"log"
 	"sync"
 )
 
@@ -32,7 +33,7 @@ func (database *database) GetConnection() *sql.DB {
 		if exists, err := utils.EnsureFilePath(database.path); err != nil {
 			panic(err)
 		} else if !exists {
-			log.Println("created new database file " + database.path)
+			logging.Debug(fmt.Sprintf("initialized new database %s", database.path))
 		}
 
 		db, err := NewDatabaseConnection(database.path)
