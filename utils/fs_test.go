@@ -39,15 +39,31 @@ func TestEnsureFilePath_MultiLevelFile(t *testing.T) {
 	assert.Nil(t, statErr)
 }
 
+func TestEnsureFilePath_NoDirectory(t *testing.T) {
+	testFile := "test.db"
+	exists, err := EnsureFilePath(testFile)
+
+	assert.False(t, exists)
+	assert.Nil(t, err)
+
+	_, statErr := os.Stat(testFile)
+	assert.Nil(t, statErr)
+}
+
 func TestMain(m *testing.M) {
+	RemoveFileIfExists("./test.db")
 	if err := CleanTestDir("./test_data"); err != nil {
-		fmt.Println(err.Error())
+		fmt.Println(err)
 		os.Exit(1)
 	}
+
 	code := m.Run()
+
+	RemoveFileIfExists("./test.db")
 	if err := CleanTestDir("./test_data"); err != nil {
-		fmt.Println(err.Error())
+		fmt.Println(err)
 		os.Exit(1)
 	}
+
 	os.Exit(code)
 }

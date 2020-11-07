@@ -18,3 +18,14 @@ func CleanTestDir(dir string) error {
 
 	return nil
 }
+
+func RemoveFileIfExists(path string) {
+	_, statErr := os.Stat(path)
+	if statErr != nil || os.IsNotExist(statErr) {
+		return
+	}
+
+	if removeErr := os.Remove(path); removeErr != nil {
+		panic(removeErr)
+	}
+}

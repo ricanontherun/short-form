@@ -6,6 +6,7 @@ import (
 	"github.com/ricanontherun/short-form/command"
 	"github.com/ricanontherun/short-form/config"
 	"github.com/ricanontherun/short-form/database"
+	"github.com/ricanontherun/short-form/logging"
 	"github.com/ricanontherun/short-form/repository"
 	"github.com/urfave/cli/v2"
 	"log"
@@ -93,6 +94,26 @@ func main() {
 		Usage:       "A command-line journal for bite sized thoughts",
 		Description: "short-form allows you to write, tag and search for short notes via the command line.",
 		Version:     appVersion,
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name: "database-path",
+				Usage: "/path/to/database to use for this command",
+				Aliases: []string{"d"},
+			},
+		},
+		Before: func(context *cli.Context) error {
+			inlineDatabasePath := context.String("database-path")
+			if len(inlineDatabasePath) != 0 {
+				if repo, repoErr := repository.NewSqlRepository(database.NewDatabase(inlineDatabasePath)); repoErr != nil {
+					return repoErr
+				} else {
+					logging.Debug(fmt.Sprintf("--database-path provided, overriding with %s", inlineDatabasePath))
+					handler = command.NewHandlerBuilder(repo).Build()
+				}
+			}
+
+			return nil
+		},
 		Commands: []*cli.Command{
 			{
 				Name:    "write",
@@ -102,7 +123,9 @@ func main() {
 					tagFlag,
 					confirmFlag,
 				},
-				Action: handler.WriteNote,
+				Action: func(context *cli.Context) error {
+					return handler.WriteNote(context)
+				},
 			},
 			{
 				Name:    "delete",
@@ -111,13 +134,17 @@ func main() {
 				Flags: []cli.Flag{
 					confirmFlag,
 				},
-				Action: handler.DeleteNote,
+				Action: func(context *cli.Context) error {
+					return handler.DeleteNote(context)
+				},
 			},
 			{
 				Name:    "edit",
 				Aliases: []string{"e"},
 				Usage:   "Edit a note's content",
-				Action:  handler.EditNote,
+				Action: func(context *cli.Context) error {
+					return handler.EditNote(context)
+				},
 			},
 			{
 				Name:    "search",
@@ -130,7 +157,9 @@ func main() {
 						Usage:   "Search for notes written today",
 						Aliases: []string{"t"},
 						Flags:   searchFlags,
-						Action:  handler.SearchToday,
+						Action: func(context *cli.Context) error {
+							return handler.SearchToday(context)
+						},
 					},
 
 					// Search against yesterday's notes.
@@ -139,11 +168,15 @@ func main() {
 						Usage:   "Search for notes written yesterday",
 						Aliases: []string{"y"},
 						Flags:   searchFlags,
-						Action:  handler.SearchYesterday,
+						Action: func(context *cli.Context) error {
+							return handler.SearchYesterday(context)
+						},
 					},
 				},
 				Flags:  searchFlags,
-				Action: handler.SearchNotes,
+				Action: func(ctx *cli.Context) error {
+					return handler.SearchNotes(ctx)
+				},
 			},
 			{
 				Name:    "configure",
@@ -187,7 +220,9 @@ func main() {
 				Name:    "stream",
 				Usage:   "Stream notes",
 				Aliases: []string{"st"},
-				Action:  handler.StreamNotes,
+				Action: func(context *cli.Context) error {
+					return handler.StreamNotes(context)
+				},
 				Flags: []cli.Flag{
 					tagFlag,
 				},

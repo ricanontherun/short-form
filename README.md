@@ -17,11 +17,10 @@ These instructions require any recent (>= 1.13) version of Golang to be installe
 
 1. `go get github.com/ricanontherun/short-form`
 2. `cd $GOPATH/src/github.com/ricanontherun/short-form`
-3. `CGO_ENABLED=1 go build -o sf`
-3. `mv sf /usr/local/bin`
+3. `CGO_ENABLED=1 go build -o $GOBIN/sf`
 
 ## Storage
-Note data is stored on disk, in `~/.sf/data`. The underlying storage engine is provided via [https://github.com/mattn/go-sqlite3](https://github.com/mattn/go-sqlite3).
+Note data are stored on disk, in `~/.sf/data`. The underlying storage engine is provided via [https://github.com/mattn/go-sqlite3](https://github.com/mattn/go-sqlite3).
 
 ## Usage
 
@@ -99,12 +98,6 @@ This is a secret note
 ...streaming instruction
 ```
 
-#### Pretty Print (colors)
-
-```
-➜ sf -p ...
-```
-
 #### Configuration
 You can configure short-form to use any file path for a database
 with the `sf c d` command. The filepath doesn't need to exist, short-form
@@ -129,7 +122,3 @@ Search for yesterday's notes tagged as `git-tricks`
 sf s -t git-tricks y
 ```
 
-## TODO
-
-1. Finish tests
-2. Binaries for Linux and Windows
