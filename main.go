@@ -52,7 +52,6 @@ var searchFlags = []cli.Flag{
 
 func dd(message string) {
 	fmt.Println(message)
-	os.Exit(1)
 }
 
 // Setup support for ctrl-c interrupt signals which are ignored whilst

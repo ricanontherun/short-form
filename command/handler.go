@@ -186,7 +186,7 @@ func (handler handler) deleteNote(note *models.Note, confirm bool) error {
 		handler.printer.PrintNote(note, output.Options{})
 
 		if ok := handler.confirmAction("Proceed?"); !ok {
-			fmt.Println("canceled")
+			fmt.Println("cancelled")
 			return nil
 		}
 	}

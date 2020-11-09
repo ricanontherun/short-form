@@ -90,6 +90,22 @@ func (printer printer) PrintNote(note *models.Note, options Options) {
 		contentString = highlightNeedle(note.Content, options.SearchContent, printer)
 	}
 
+	if strings.Contains(contentString, ":") {
+		parts := strings.Split(contentString, ":")
+
+		// Print title.
+		boldPrinter := color.New(color.Bold)
+		fmt.Println("\"" + boldPrinter.Sprint(parts[0]) + "\"")
+
+		if len(parts) > 2 {
+			contentString = strings.Join(parts[1:], ":")
+		} else {
+			contentString = parts[1]
+		}
+
+		contentString = strings.TrimSpace(contentString)
+	}
+
 	fmt.Println(contentString)
 	fmt.Println()
 }
