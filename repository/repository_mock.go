@@ -62,5 +62,11 @@ func (repository *mockRepository) LookupNotesByShortId(shortId string) ([]*model
 	}
 }
 
+func (repository *mockRepository) DeleteNoteByTag(tag string) error {
+	args := repository.Called(tag)
+
+	return args.Error(0)
+}
+
 func (repository *mockRepository) Close() {
 }

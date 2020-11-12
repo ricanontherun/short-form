@@ -32,6 +32,7 @@ type HandlerBuilder struct {
 	repository      repository.Repository
 	nowSupplier     nowSupplier
 	inputController UserInputController
+	userConfig      config.Config
 }
 
 func NewHandlerBuilder(repository repository.Repository) *HandlerBuilder {
@@ -158,21 +159,66 @@ func (handler handler) SearchNotes(ctx *cli.Context) error {
 }
 
 func (handler handler) DeleteNote(ctx *cli.Context) error {
-	noteId := strings.TrimSpace(ctx.Args().First())
-	noteIdLen := len(noteId)
+	// Check for delete by tagString scenario.
+	tagString := strings.ToLower(strings.TrimSpace(ctx.String("tags")))
 
-	if noteIdLen == 0 {
-		return errMissingNoteId
-	}
+	if len(tagString) != 0 { // Delete by tagString
+		tags := strings.Split(tagString, ",")
 
-	if !models.IsValidId(noteId) {
-		return errInvalidNoteId
-	}
+		if notes, err := handler.repository.SearchNotes(models.SearchFilters{
+			Tags: tags,
+		}); err != nil {
+			return err
+		} else if len(notes) == 0 {
+			fmt.Printf("0 notes found with tags '%s'", tagString)
+			return nil
+		} else {
+			fmt.Println("The following notes will be deleted:")
+			handler.printer.PrintNotes(notes, output.Options{})
 
-	if note, err := handler.findNoteById(noteId); err != nil {
-		return err
-	} else {
-		return handler.deleteNote(note, !ctx.Bool(flagNoConfirm))
+			confirm := ""
+			notesLen := len(notes)
+			if len(notes) == 1 {
+				confirm = "delete 1 note?"
+			} else {
+				confirm = fmt.Sprintf("delete %d notes?", notesLen)
+			}
+
+			if handler.confirmAction(confirm) {
+				if _, exists := os.LookupEnv("SHORT_FORM_DRYRUN"); !exists {
+					for _, tag := range tags {
+						if deletedErr := handler.repository.DeleteNoteByTag(tag); deletedErr != nil {
+							return deletedErr
+						}
+					}
+
+					fmt.Println("ok")
+				} else {
+					fmt.Println("dry run, 0 notes deleted")
+				}
+
+				return nil
+			}
+		}
+
+		return nil
+	} else { // delete by id
+		noteId := strings.TrimSpace(ctx.Args().First())
+		noteIdLen := len(noteId)
+
+		if noteIdLen == 0 {
+			return errMissingNoteId
+		}
+
+		if !models.IsValidId(noteId) {
+			return errInvalidNoteId
+		}
+
+		if note, err := handler.findNoteById(noteId); err != nil {
+			return err
+		} else {
+			return handler.deleteNote(note, !ctx.Bool(flagNoConfirm))
+		}
 	}
 }
 
@@ -316,7 +362,7 @@ func (handler *handler) findNoteById(noteId string) (*models.Note, error) {
 			case 1:
 				note = notes[0]
 			default:
-				fmt.Printf("The following notes were found having IDs starting with '%s', please try again using the full ID\n",  noteId)
+				fmt.Printf("The following notes were found having IDs starting with '%s', please try again using the full ID\n", noteId)
 				printOptions := output.NewOptions()
 				printOptions.FullID = true
 				printOptions.Search = struct {

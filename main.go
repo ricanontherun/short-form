@@ -18,6 +18,13 @@ import (
 
 var (
 	tagFlag = &cli.StringFlag{
+		Name:    "tag",
+		Aliases: []string{"t"},
+		Usage:   "single tag",
+		Value:   "",
+	}
+
+	tagsFlag = &cli.StringFlag{
 		Name:    "tags",
 		Aliases: []string{"t"},
 		Usage:   "comma,separated,list of tags to filter on.",
@@ -35,7 +42,7 @@ var (
 )
 
 var searchFlags = []cli.Flag{
-	tagFlag,
+	tagsFlag,
 	&cli.StringFlag{
 		Name:    "content",
 		Usage:   "Search by note content",
@@ -96,8 +103,8 @@ func main() {
 		Version:     appVersion,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name: "database-path",
-				Usage: "/path/to/database to use for this command",
+				Name:    "database-path",
+				Usage:   "/path/to/database to use for this command",
 				Aliases: []string{"d"},
 			},
 		},
@@ -120,7 +127,7 @@ func main() {
 				Aliases: []string{"w"},
 				Usage:   "Write a new note",
 				Flags: []cli.Flag{
-					tagFlag,
+					tagsFlag,
 					confirmFlag,
 				},
 				Action: func(context *cli.Context) error {
@@ -131,9 +138,7 @@ func main() {
 				Name:    "delete",
 				Aliases: []string{"d"},
 				Usage:   "Delete a note",
-				Flags: []cli.Flag{
-					confirmFlag,
-				},
+				Flags:   []cli.Flag{tagsFlag},
 				Action: func(context *cli.Context) error {
 					return handler.DeleteNote(context)
 				},
@@ -173,7 +178,7 @@ func main() {
 						},
 					},
 				},
-				Flags:  searchFlags,
+				Flags: searchFlags,
 				Action: func(ctx *cli.Context) error {
 					return handler.SearchNotes(ctx)
 				},
@@ -224,7 +229,7 @@ func main() {
 					return handler.StreamNotes(context)
 				},
 				Flags: []cli.Flag{
-					tagFlag,
+					tagsFlag,
 				},
 			},
 		},

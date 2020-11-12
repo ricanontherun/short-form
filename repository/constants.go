@@ -54,6 +54,14 @@ ORDER BY notes.timestamp DESC
 const sqlUpdateNote = `UPDATE notes SET content=? WHERE id=?`
 
 const sqlDeleteNote = "DELETE FROM notes WHERE notes.id = ?"
+const sqlDeleteNotesByTag = `
+DELETE FROM notes
+WHERE notes.id IN (
+    select distinct note_id from note_tags
+    where tag = ?
+)`
+
+const sqlDeleteTags = "DELETE FROM note_tags WHERE tag = ?"
 
 const sqlDeleteNoteTags = "DELETE FROM note_tags WHERE note_tags.note_id = ?"
 

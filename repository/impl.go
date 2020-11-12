@@ -13,6 +13,29 @@ type sqlRepository struct {
 	db database.Database
 }
 
+// Delete all the notes under a tag
+func (repository sqlRepository) DeleteNoteByTag(tag string) error {
+	return repository.transaction(func(tx *sql.Tx) error {
+		if stmt, err := tx.Prepare(sqlDeleteNotesByTag); err != nil {
+			return err
+		} else {
+			if _, err = stmt.Exec(tag); err != nil {
+				return err
+			}
+		}
+
+		if stmt, err := tx.Prepare(sqlDeleteTags); err != nil {
+			return err
+		} else {
+			if _, err := stmt.Exec(tag); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+}
+
 func NewSqlRepository(db database.Database) (Repository, error) {
 	repository := sqlRepository{db}
 

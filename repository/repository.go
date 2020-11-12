@@ -11,8 +11,11 @@ type Repository interface {
 	TagNote(note models.Note, tags []string) error
 	// Search for notes by tag, date or content
 	SearchNotes(ctx models.SearchFilters) ([]*models.Note, error)
+
 	// Delete a note (hard delete)
 	DeleteNote(noteId string) error
+	DeleteNoteByTag(tag string) error
+
 	// Fetch a single note from the database
 	LookupNote(noteId string) (*models.Note, error)
 	// Fetch a single note from the database along with it's tags.

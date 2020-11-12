@@ -40,7 +40,7 @@ func TestEnsureFilePath_MultiLevelFile(t *testing.T) {
 }
 
 func TestEnsureFilePath_NoDirectory(t *testing.T) {
-	testFile := "test.db"
+	testFile := "./test.db"
 	exists, err := EnsureFilePath(testFile)
 
 	assert.False(t, exists)

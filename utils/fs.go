@@ -10,10 +10,6 @@ import (
 func EnsureFilePath(filePath string) (bool, error) {
 	var exists = true
 
-	if !strings.HasPrefix(filePath, "/") || !strings.HasPrefix(filePath, "./") {
-		filePath = "./" + filePath
-	}
-
 	// Does the file already exists?
 	_, statErr := os.Stat(filePath)
 	if statErr == nil {
