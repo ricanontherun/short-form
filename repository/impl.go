@@ -9,6 +9,13 @@ import (
 	"strings"
 )
 
+type SearchTypeType string
+
+const (
+	SearchTypeAnd SearchTypeType = "AND"
+	SearchTypeOr  SearchTypeType = "OR"
+)
+
 type sqlRepository struct {
 	db database.Database
 }
@@ -50,40 +57,53 @@ func NewSqlRepository(db database.Database) (Repository, error) {
 	return repository, nil
 }
 
-func buildSearchQueryFromContext(ctx models.SearchFilters) string {
+func buildSearchQueryFromFilters(searchFilters *models.SearchFilters) string {
 	var where []string
 
-	if ctx.DateRange != nil {
+	var searchType SearchTypeType
+	if len(searchFilters.String) > 0 {
+		searchType = SearchTypeOr
+	} else {
+		searchType = SearchTypeAnd
+	}
+
+	if searchFilters.DateRange != nil {
 		filter := fmt.Sprintf(
 			" timestamp BETWEEN datetime('%s') and datetime('%s') ",
-			ctx.DateRange.From.Format("2006-01-02 15:04:05"),
-			ctx.DateRange.To.Format("2006-01-02 15:04:05"),
+			searchFilters.DateRange.From.Format("2006-01-02 15:04:05"),
+			searchFilters.DateRange.To.Format("2006-01-02 15:04:05"),
 		)
 
 		where = append(where, filter)
 	}
 
-	if len(ctx.Tags) > 0 {
-		quotedTags := make([]string, 0, len(ctx.Tags))
-		for _, tag := range ctx.Tags {
-			quotedTags = append(quotedTags, "'"+tag+"'")
-		}
-
-		filter := fmt.Sprintf(" note_tags.tag in (%s)", strings.Join(quotedTags, ","))
-
-		where = append(where, filter)
+	if len(searchFilters.String) > 0 {
+		where = append(where, prepareTagsFilter([]string{searchFilters.String}))
+	} else if len(searchFilters.Tags) > 0 {
+		where = append(where, prepareTagsFilter(searchFilters.Tags))
 	}
 
-	if len(ctx.Content) > 0 {
-		where = append(where, " notes.content LIKE '%"+ctx.Content+"%'")
+	if len(searchFilters.String) > 0 {
+		where = append(where, " notes.content LIKE '%"+searchFilters.String+"%'")
+	} else if len(searchFilters.Content) > 0 {
+		where = append(where, " notes.content LIKE '%"+searchFilters.Content+"%'")
 	}
 
 	whereClauseString := ""
 	if len(where) > 0 {
-		whereClauseString = "WHERE " + strings.Join(where, "AND")
+		whereClauseString = "WHERE " + strings.Join(where, string(searchType))
 	}
 
 	return fmt.Sprintf(sqlSearchNotes, whereClauseString)
+}
+
+func prepareTagsFilter(tags []string) string {
+	quotedTags := make([]string, 0, len(tags))
+	for _, tag := range tags {
+		quotedTags = append(quotedTags, "'"+tag+"'")
+	}
+
+	return fmt.Sprintf(" note_tags.tag in (%s)", strings.Join(quotedTags, ","))
 }
 
 func makeInsertValuesForTags(noteId string, tags []string) string {
@@ -172,8 +192,8 @@ func (repository sqlRepository) transaction(callback func(*sql.Tx) error) error 
 	}
 }
 
-func (repository sqlRepository) SearchNotes(ctx models.SearchFilters) ([]*models.Note, error) {
-	stmt, err := repository.db.GetConnection().Prepare(buildSearchQueryFromContext(ctx))
+func (repository sqlRepository) SearchNotes(ctx *models.SearchFilters) ([]*models.Note, error) {
+	stmt, err := repository.db.GetConnection().Prepare(buildSearchQueryFromFilters(ctx))
 	if err != nil {
 		return nil, err
 	}

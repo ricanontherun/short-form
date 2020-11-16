@@ -101,61 +101,51 @@ func (handler handler) writeNote(note models.Note) error {
 func (handler handler) SearchToday(ctx *cli.Context) error {
 	now := handler.nowSupplyingFn()
 
-	searchFilters := getSearchFiltersFromContext(ctx)
-	dateRange := models.GetRangeToday(now)
-	searchFilters.DateRange = &dateRange
-
-	if notes, err := handler.repository.SearchNotes(searchFilters); err != nil {
+	if searchFilters, err := handler.getSearchFiltersFromContext(ctx); err != nil {
 		return err
 	} else {
-		handler.printer.PrintNotes(notes, getPrintOptionsFromContext(ctx))
-	}
+		dateRange := models.GetRangeToday(now)
+		searchFilters.DateRange = &dateRange
 
-	return nil
+		if notes, err := handler.repository.SearchNotes(searchFilters); err != nil {
+			return err
+		} else {
+			handler.printer.PrintNotes(notes, getPrintOptionsFromContext(ctx))
+		}
+
+		return nil
+	}
 }
 
 func (handler handler) SearchYesterday(ctx *cli.Context) error {
-	baseFilters := getSearchFiltersFromContext(ctx)
-
-	dateRange := models.GetRangeYesterday(handler.nowSupplyingFn())
-	baseFilters.DateRange = &dateRange
-
-	if notes, err := handler.repository.SearchNotes(baseFilters); err != nil {
+	if baseFilters, err := handler.getSearchFiltersFromContext(ctx); err != nil {
 		return err
 	} else {
-		handler.printer.PrintNotes(notes, getPrintOptionsFromContext(ctx))
-	}
+		dateRange := models.GetRangeYesterday(handler.nowSupplyingFn())
+		baseFilters.DateRange = &dateRange
 
-	return nil
+		if notes, err := handler.repository.SearchNotes(baseFilters); err != nil {
+			return err
+		} else {
+			handler.printer.PrintNotes(notes, getPrintOptionsFromContext(ctx))
+		}
+
+		return nil
+	}
 }
 
 func (handler handler) SearchNotes(ctx *cli.Context) error {
-	searchFilters := getSearchFiltersFromContext(ctx)
-
-	age := strings.ToLower(ctx.String(flagAge))
-	if len(age) > 0 {
-		validAge := regexp.MustCompile(`^\d+d$`)
-		if !validAge.MatchString(age) {
-			return errInvalidAge
-		} else {
-			ageDays, _ := strconv.Atoi(strings.TrimRight(age, "d"))
-			end := handler.nowSupplyingFn()
-			start := end.AddDate(0, 0, -ageDays)
-
-			searchFilters.DateRange = &models.DateRange{
-				From: start,
-				To:   end,
-			}
-		}
-	}
-
-	if notes, err := handler.repository.SearchNotes(searchFilters); err != nil {
+	if searchFilters, err := handler.getSearchFiltersFromContext(ctx); err != nil {
 		return err
 	} else {
-		handler.printer.PrintNotes(notes, getPrintOptionsFromContext(ctx))
-	}
+		if notes, err := handler.repository.SearchNotes(searchFilters); err != nil {
+			return err
+		} else {
+			handler.printer.PrintNotes(notes, getPrintOptionsFromContext(ctx))
+		}
 
-	return nil
+		return nil
+	}
 }
 
 func (handler handler) DeleteNote(ctx *cli.Context) error {
@@ -165,7 +155,7 @@ func (handler handler) DeleteNote(ctx *cli.Context) error {
 	if len(tagString) != 0 { // Delete by tagString
 		tags := strings.Split(tagString, ",")
 
-		if notes, err := handler.repository.SearchNotes(models.SearchFilters{
+		if notes, err := handler.repository.SearchNotes(&models.SearchFilters{
 			Tags: tags,
 		}); err != nil {
 			return err
@@ -381,4 +371,33 @@ func (handler *handler) findNoteById(noteId string) (*models.Note, error) {
 	}
 
 	return note, nil
+}
+
+func (handler handler) getSearchFiltersFromContext(ctx *cli.Context) (*models.SearchFilters, error) {
+	searchFilters := &models.SearchFilters{
+		Tags:    getTagsFromContext(ctx),
+		Content: strings.TrimSpace(ctx.String(flagContent)),
+		String:  strings.TrimSpace(strings.Join(ctx.Args().Slice(), " ")),
+	}
+
+	age := strings.ToLower(ctx.String(flagAge))
+	if len(age) > 0 {
+		validAge := regexp.MustCompile(`^\d+d$`)
+		if !validAge.MatchString(age) {
+			return nil, errInvalidAge
+		} else {
+			ageDays, _ := strconv.Atoi(strings.TrimRight(age, "d"))
+			end := handler.nowSupplyingFn()
+			start := end.AddDate(0, 0, -ageDays)
+
+			searchFilters.DateRange = &models.DateRange{
+				From: start,
+				To:   end,
+			}
+		}
+	}
+
+	logging.Debug(fmt.Sprintf("search filters = %+v", searchFilters))
+
+	return searchFilters, nil
 }

@@ -10,7 +10,7 @@ type Repository interface {
 	// Apply tags to a note
 	TagNote(note models.Note, tags []string) error
 	// Search for notes by tag, date or content
-	SearchNotes(ctx models.SearchFilters) ([]*models.Note, error)
+	SearchNotes(ctx *models.SearchFilters) ([]*models.Note, error)
 
 	// Delete a note (hard delete)
 	DeleteNote(noteId string) error

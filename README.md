@@ -20,7 +20,17 @@ These instructions require any recent (>= 1.13) version of Golang to be installe
 3. `CGO_ENABLED=1 go build -o $GOBIN/sf`
 
 ## Storage
-Note data are stored on disk, in `~/.sf/data`. The underlying storage engine is provided via [https://github.com/mattn/go-sqlite3](https://github.com/mattn/go-sqlite3).
+Short Form uses sqlite3 to manage the note database. By default, the database are located at `~/.sf/data`. The storage
+location can be overridden via the configuration command:
+
+```bash
+sf configure database --path /path/to/database
+```
+
+The path to the short form database can also be overridden on a per-command basis via the `--database-path` flag:
+```bash
+sf --database-path /path/to/database ...
+```
 
 ## Usage
 
@@ -28,97 +38,67 @@ Display help
 `sf --help`
 #### Writing notes
 ```
-➜ sf w Hello, this is a note.
+➜ sf write Hello, this is a note.
 ```
 
 You can also tag notes using a comma,separated,list of tags.
 ```
-➜ sf w -t git,cli git rebase: git rebase COMMIT
+➜ sf write --tags foo,bar Hello, this is a note.
 ```
 
 The note content can be provided either as the last argument, or as a stdin pipe.
 ```
-➜ cat something.txt | sf w
+➜ cat something.txt | sf write
+```
+
+Notes can be streamed into the database via the stream command.
+```
+-> sf stream --tags observations,load-test-service-a
+streaming notes. Separated by newlines, terminated by EOL
+-> note 1
+-> note 2
+-> note 3
+->
 ```
 
 #### Searching Notes
 
-Search by tag
+Search by tag (find notes where tags contain 'git')
 ```
-➜ sf s -t git
-2 note(s) found
-
-December 08, 2019 02:39 PM | git
-git rebase: git rebase COMMIT
-
-December 08, 2019 02:43 PM | git
-git rebase (interactive): git rebase -i COMMIT
+-> sf search --tags git
 ```
 
-Search by note content
+Search by note content (find notes where content = 'rebase')
 ```
-➜ sf s -c rebase
-1 note(s) found
-
-December 08, 2019 02:39 PM | git, cli
-git rebase: git rebase COMMIT
+➜ sf search --content rebase
 ```
 
+Search by note AND content (find notes where content = 'rebase' AND tags contain 'git')
 ```
-➜ sf s today
-4 note(s) found
-
-December 08, 2019 02:30 PM
-Hello, this is the note.
-
-December 08, 2019 02:39 PM | git, cli
-git rebase: git rebase COMMIT
-
-December 08, 2019 02:43 PM | git
-git rebase (interactive): git rebase -i COMMIT
+-> sf search --content rebase --tags git
 ```
 
-Display note details.
+Generic search against everything (find notes where content contains 'foo' OR tags contain 'foo')
 ```
-➜ sf s -d -t top-secret 
-1 note(s) found
+-> sf search foo
+```
 
-December 08, 2019 02:35 PM | NOTEID | top-secret
-This is a secret note
+**Date Relative Searches**
+
+Search notes written today
+```
+➜ sf search today
+```
+
+Search notes written in the last 10 day (age)
+```
+-> sf search --age 10d
 ```
 
 #### Delete a note
-```
-➜ sf d NOTE_ID
-```
 
-#### Streaming Notes
+NOTE_ID being the 8 character ID printed on search.
 ```
-➜ sf st -t notes,some-documentary
-...streaming instruction
-```
-
-#### Configuration
-You can configure short-form to use any file path for a database
-with the `sf c d` command. The filepath doesn't need to exist, short-form
-wil create it for you if need be.
-
-```bash
-sf c d -p /path/to/your/database
-```
-
-These configuration values are stored at `~/.sf/config.json` and can be read via the following command:
-
-```bash
-sf configure read
-sf c r
-```
-
-### Shorthand
-All commands and flags support short versions.
-
-Search for yesterday's notes tagged as `git-tricks`
-```
-sf s -t git-tricks y
+➜ sf delete NOTE_ID
 ```
 

@@ -146,7 +146,7 @@ func TestHandler_SearchToday(t *testing.T) {
 		r.AssertNumberOfCalls(t, "SearchNotes", 1)
 
 		sort.Strings(test.expectedTags)
-		filters := r.Calls[0].Arguments.Get(0).(models.SearchFilters)
+		filters := r.Calls[0].Arguments.Get(0).(*models.SearchFilters)
 		sort.Strings(filters.Tags)
 		assert.EqualValues(t, test.expectedTags, filters.Tags)
 		assert.EqualValues(t, test.expectedContent, filters.Content)
@@ -202,7 +202,7 @@ func TestHandler_SearchYesterday(t *testing.T) {
 		// Then
 		r.AssertNumberOfCalls(t, "SearchNotes", 1)
 
-		filters := r.Calls[0].Arguments.Get(0).(models.SearchFilters)
+		filters := r.Calls[0].Arguments.Get(0).(*models.SearchFilters)
 		sort.Strings(test.expectedTags)
 		sort.Strings(filters.Tags)
 		assert.EqualValues(t, test.expectedTags, filters.Tags)
@@ -285,7 +285,7 @@ func TestHandler_SearchNotes(t *testing.T) {
 			assert.EqualValues(t, test.expectedErr, err)
 		} else {
 			r.AssertNumberOfCalls(t, "SearchNotes", 1)
-			filters := r.Calls[0].Arguments.Get(0).(models.SearchFilters)
+			filters := r.Calls[0].Arguments.Get(0).(*models.SearchFilters)
 
 			sort.Strings(filters.Tags)
 			sort.Strings(test.expectedTags)

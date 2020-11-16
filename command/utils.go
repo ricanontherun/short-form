@@ -3,7 +3,6 @@ package command
 import (
 	"bufio"
 	"fmt"
-	"github.com/ricanontherun/short-form/models"
 	"github.com/ricanontherun/short-form/output"
 	"github.com/ricanontherun/short-form/utils"
 	"github.com/urfave/cli/v2"
@@ -19,8 +18,16 @@ type parsedInput struct {
 
 func getPrintOptionsFromContext(ctx *cli.Context) output.Options {
 	options := output.NewOptions()
-	options.SearchContent = ctx.String(flagContent)
-	options.SearchTags = getTagsFromContext(ctx)
+
+	search := strings.TrimSpace(strings.Join(ctx.Args().Slice(), " "))
+	if len(search) > 0 {
+		options.SearchContent = search
+		options.SearchTags = []string{search}
+	} else {
+		options.SearchContent = ctx.String(flagContent)
+		options.SearchTags = getTagsFromContext(ctx)
+	}
+
 	return options
 }
 
@@ -93,11 +100,4 @@ func cleanTagsFromString(tagString string) []string {
 	}
 
 	return tags.Entries()
-}
-
-func getSearchFiltersFromContext(c *cli.Context) models.SearchFilters {
-	return models.SearchFilters{
-		Tags:    getTagsFromContext(c),
-		Content: strings.TrimSpace(c.String(flagContent)),
-	}
 }
