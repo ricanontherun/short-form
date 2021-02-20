@@ -3,22 +3,22 @@ package models
 import uuid "github.com/satori/go.uuid"
 
 var (
-	IdLength      = len(uuid.NamespaceDNS.String())
-	ShortIdLength = 8
+	LongIDLength  = len(uuid.NamespaceDNS.String())
+	ShortIDLength = 8
 )
 
 func IsValidId(id string) bool {
 	var idLen = len(id)
-	var validLength = idLen == IdLength || idLen == ShortIdLength
-	var validForm = true
 
-	if idLen == IdLength {
+	if idLen == LongIDLength {
 		if _, err := uuid.FromString(id); err != nil {
-			validForm = false
+			return false
 		}
+	} else if idLen != ShortIDLength {
+		return false
 	}
 
-	return validLength && validForm
+	return true
 }
 
 func NewId() string {

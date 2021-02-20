@@ -85,13 +85,11 @@ func main() {
 		log.Fatalln(readConfigErr)
 	}
 
-	db := database.NewDatabase(userConfig.GetDatabasePath())
+	// initialize singleton database instance.
+	database.InitializeDatabaseSingleton(userConfig.GetDatabasePath())
+	db := database.GetInstance()
 
-	repo, err := repository.NewSqlRepository(db)
-	if err != nil {
-		log.Fatalf("Failed to open database: %s\n", err.Error())
-	}
-
+	repo := repository.NewSqlRepository(db)
 	handler := command.NewHandlerBuilder(repo).Build()
 
 	setupSignalHandlers()
@@ -111,12 +109,10 @@ func main() {
 		Before: func(context *cli.Context) error {
 			inlineDatabasePath := context.String("database-path")
 			if len(inlineDatabasePath) != 0 {
-				if repo, repoErr := repository.NewSqlRepository(database.NewDatabase(inlineDatabasePath)); repoErr != nil {
-					return repoErr
-				} else {
-					logging.Debug(fmt.Sprintf("--database-path provided, overriding with %s", inlineDatabasePath))
-					handler = command.NewHandlerBuilder(repo).Build()
-				}
+				database.InitializeDatabaseSingleton(inlineDatabasePath)
+				repo :=  repository.NewSqlRepository(database.GetInstance())
+				logging.Debug(fmt.Sprintf("--database-path provided, overriding with %s", inlineDatabasePath))
+				handler = command.NewHandlerBuilder(repo).Build()
 			}
 
 			return nil
@@ -131,7 +127,19 @@ func main() {
 					confirmFlag,
 				},
 				Action: func(context *cli.Context) error {
-					return handler.WriteNote(context)
+					note, err := command.NewNoteFromContext(context)
+					if err != nil {
+						return err
+					}
+
+					writeCommand := command.NewWriteCommand(note)
+
+					if err := writeCommand.Execute(); err != nil {
+						return err
+					} else {
+						fmt.Println("note saved")
+						return nil
+					}
 				},
 			},
 			{
@@ -139,8 +147,18 @@ func main() {
 				Aliases: []string{"d"},
 				Usage:   "Delete a note",
 				Flags:   []cli.Flag{tagsFlag},
-				Action: func(context *cli.Context) error {
-					return handler.DeleteNote(context)
+				Action: func(ctx *cli.Context) error {
+					if dto, err := command.NewDeleteFromContext(ctx); err != nil {
+						return err
+					} else {
+						deleteCommand := command.NewDeleteCommand(dto)
+						if err := deleteCommand.Execute(); err != nil {
+							return err
+						} else {
+							fmt.Println("note(s) deleted")
+							return nil
+						}
+					}
 				},
 			},
 			{
@@ -235,7 +253,7 @@ func main() {
 		},
 	}
 
-	if err = app.Run(os.Args); err != nil {
+	if err := app.Run(os.Args); err != nil {
 		dd(err.Error())
 	}
 }

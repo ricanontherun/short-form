@@ -64,13 +64,18 @@ func (printer printer) PrintNote(note *models.Note, options Options) {
 			bluePrinter := color.New(color.FgBlue)
 
 			for _, noteTag := range note.Tags {
-				if _, exists := searchTagMap[noteTag]; exists {
-					highlightedTag := bluePrinter.Sprint(printer.Sprint(noteTag))
-					processedTags = append(processedTags, highlightedTag)
-				} else {
-					processedTags = append(processedTags, noteTag)
+				// if this noteTag contains (or IS) any of our search tags
+				for _, searchTag := range options.SearchTags {
+					if strings.Contains(noteTag, searchTag) {
+						searchTag = bluePrinter.Sprint(printer.Sprint(noteTag))
+						processedTags = append(processedTags, bluePrinter.Sprint(printer.Sprint(noteTag)))
+						break
+					} else {
+						processedTags = append(processedTags, noteTag)
+					}
 				}
 			}
+
 			tagsString = strings.Join(processedTags, ", ")
 		} else {
 			tagsString = strings.Join(note.Tags, ", ")

@@ -7,7 +7,7 @@ var (
 	ErrFailedToUpdateNote = errors.New("failed to update note")
 )
 
-const sqlInitializeDatabase = `
+const SQLInitializeDatabase = `
 CREATE TABLE IF NOT EXISTS notes
 (
 	id CHAR(16) not null

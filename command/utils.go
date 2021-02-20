@@ -1,13 +1,10 @@
 package command
 
 import (
-	"bufio"
 	"fmt"
 	"github.com/ricanontherun/short-form/output"
 	"github.com/ricanontherun/short-form/utils"
 	"github.com/urfave/cli/v2"
-	"io"
-	"os"
 	"strings"
 )
 
@@ -17,18 +14,18 @@ type parsedInput struct {
 }
 
 func getPrintOptionsFromContext(ctx *cli.Context) output.Options {
-	options := output.NewOptions()
+	print_options := output.NewOptions()
+	searchString := strings.TrimSpace(strings.Join(ctx.Args().Slice(), " "))
 
-	search := strings.TrimSpace(strings.Join(ctx.Args().Slice(), " "))
-	if len(search) > 0 {
-		options.SearchContent = search
-		options.SearchTags = []string{search}
+	if len(searchString) > 0 {
+		print_options.SearchContent = searchString
+		print_options.SearchTags = []string{searchString}
 	} else {
-		options.SearchContent = ctx.String(flagContent)
-		options.SearchTags = getTagsFromContext(ctx)
+		print_options.SearchContent = ctx.String(flagContent)
+		print_options.SearchTags = ReadTagsFromContext(ctx)
 	}
 
-	return options
+	return print_options
 }
 
 // Prompt the user for input.
@@ -45,59 +42,4 @@ func (handler handler) confirmAction(message string) bool {
 		"yes",
 		"y",
 	})
-}
-
-func getContentFromInput(ctx *cli.Context) (*parsedInput, error) {
-	stdinStat, err := os.Stdin.Stat()
-	if err != nil {
-		return nil, err
-	}
-
-	var content string
-
-	args := ctx.Args().Slice()
-	if len(args) != 0 {
-		content = strings.Join(args, " ")
-	} else if stdinStat.Mode()&os.ModeCharDevice != 0 || stdinStat.Size() != 0 {
-		stdinReader := bufio.NewReader(os.Stdin)
-		var stdinBuilder strings.Builder
-
-		for {
-			if r, _, readErr := stdinReader.ReadRune(); readErr != nil && readErr == io.EOF {
-				break
-			} else {
-				if readErr != nil { // unexpected (non EOF) error.
-					panic(readErr)
-				}
-
-				stdinBuilder.WriteRune(r)
-			}
-		}
-
-		content = strings.TrimSuffix(stdinBuilder.String(), "\n")
-	}
-
-	return &parsedInput{
-		content: content,
-		tags:    getTagsFromContext(ctx),
-	}, nil
-}
-
-// Return a cleaned array of tags provided as --tags=t1,t2,t3, as ['t1', 't2', 't3']
-func getTagsFromContext(c *cli.Context) []string {
-	return cleanTagsFromString(c.String(flagTags))
-}
-
-func cleanTagsFromString(tagString string) []string {
-	tags := utils.NewSet()
-
-	for _, tag := range strings.Split(tagString, ",") {
-		trimmed := strings.TrimSpace(tag)
-
-		if len(trimmed) > 0 {
-			tags.Add(trimmed)
-		}
-	}
-
-	return tags.Entries()
 }

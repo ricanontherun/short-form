@@ -75,22 +75,10 @@ func DefaultNowSupplier() time.Time {
 	return time.Now()
 }
 
-func (handler handler) WriteNote(ctx *cli.Context) error {
-	input, err := getContentFromInput(ctx)
-
-	if err != nil {
+func (handler handler) WriteNote(input *Note) error {
+	if err := handler.repository.WriteNote(models.NewNote(input.Tags, input.Content)); err != nil {
 		return err
 	}
-
-	if len(input.content) == 0 {
-		return errEmptyContent
-	}
-
-	if err := handler.repository.WriteNote(models.NewNote(input.tags, input.content)); err != nil {
-		return err
-	}
-
-	fmt.Println("note saved")
 	return nil
 }
 
@@ -174,6 +162,7 @@ func (handler handler) DeleteNote(ctx *cli.Context) error {
 				confirm = fmt.Sprintf("delete %d notes?", notesLen)
 			}
 
+			// TODO: Check for no confirm flag.
 			if handler.confirmAction(confirm) {
 				if _, exists := os.LookupEnv("SHORT_FORM_DRYRUN"); !exists {
 					for _, tag := range tags {
@@ -270,7 +259,7 @@ func (handler handler) EditNote(ctx *cli.Context) error {
 
 		if len(newTagsString) != 0 {
 			tagsChanged = true
-			note.Tags = cleanTagsFromString(newTagsString)
+			note.Tags = CleanTagsFromString(newTagsString)
 		}
 	}
 
@@ -311,7 +300,7 @@ func (handler handler) ConfigureDatabase(cli *cli.Context, conf config.Config) e
 }
 
 func (handler handler) StreamNotes(cli *cli.Context) error {
-	tags := getTagsFromContext(cli)
+	tags := ReadTagsFromContext(cli)
 	input := ""
 	reader := bufio.NewReader(os.Stdin)
 
@@ -340,7 +329,7 @@ func (handler *handler) findNoteById(noteId string) (*models.Note, error) {
 	var note *models.Note
 	var noteIdLen = len(noteId)
 
-	if noteIdLen == models.ShortIdLength {
+	if noteIdLen == models.ShortIDLength {
 		if notes, err := handler.repository.LookupNotesByShortId(noteId); err != nil {
 			return nil, err
 		} else {
@@ -375,7 +364,7 @@ func (handler *handler) findNoteById(noteId string) (*models.Note, error) {
 
 func (handler handler) getSearchFiltersFromContext(ctx *cli.Context) (*models.SearchFilters, error) {
 	searchFilters := &models.SearchFilters{
-		Tags:    getTagsFromContext(ctx),
+		Tags:    ReadTagsFromContext(ctx),
 		Content: strings.TrimSpace(ctx.String(flagContent)),
 		String:  strings.TrimSpace(strings.Join(ctx.Args().Slice(), " ")),
 	}

@@ -2,7 +2,6 @@ package repository
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"github.com/ricanontherun/short-form/database"
 	"github.com/ricanontherun/short-form/models"
@@ -43,18 +42,8 @@ func (repository sqlRepository) DeleteNoteByTag(tag string) error {
 	})
 }
 
-func NewSqlRepository(db database.Database) (Repository, error) {
-	repository := sqlRepository{db}
-
-	repository.db.SetPostInit(func(db *sql.DB) error {
-		if err := repository.initialize(db); err != nil {
-			return errors.New("failed to initialize database: " + err.Error())
-		}
-
-		return nil
-	})
-
-	return repository, nil
+func NewSqlRepository(db database.Database) Repository {
+	return sqlRepository{db}
 }
 
 func buildSearchQueryFromFilters(searchFilters *models.SearchFilters) string {
@@ -384,7 +373,7 @@ func (repository sqlRepository) LookupNotesByShortId(shortId string) ([]*models.
 
 // Initialize the database structure.
 func (repository sqlRepository) initialize(db *sql.DB) error {
-	if _, err := db.Exec(sqlInitializeDatabase); err != nil {
+	if _, err := db.Exec(SQLInitializeDatabase); err != nil {
 		return err
 	}
 
