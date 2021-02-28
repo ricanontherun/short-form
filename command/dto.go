@@ -1,6 +1,7 @@
 package command
 
 import (
+	"github.com/ricanontherun/short-form/user_input"
 	"github.com/ricanontherun/short-form/utils"
 	uuid "github.com/satori/go.uuid"
 	"github.com/urfave/cli/v2"
@@ -28,43 +29,47 @@ func isValidNoteId(id string) bool {
 
 type tagsType []string
 
-type Note struct {
+type NoteDTO struct {
 	Content string
 	Tags    tagsType
 }
 
-type Delete struct {
-	// Delete using the note's short or long ID
+type DeleteByNoteID struct {
 	NoteID string
+}
 
-	// Delete notes which
+type deleteByTags struct {
 	Tags []string
 }
 
-func NewDeleteFromContext(ctx *cli.Context) (*Delete, error) {
-	d := &Delete{}
+func NewDeleteFromContext(ctx *cli.Context) (*DeleteByNoteID, error) {
+	d := &DeleteByNoteID{}
 
-	// Read and validate note ID
 	noteId := strings.TrimSpace(ctx.Args().First())
 	if len(noteId) > 0 && !isValidNoteId(noteId) {
 		return nil, errInvalidNoteId
 	}
 	d.NoteID = noteId
 
-	// Read any "delete by" tags
+	return d, nil
+}
+
+func NewDeleteByTagsFromContext(ctx *cli.Context) *deleteByTags {
+	d := &deleteByTags{}
+
 	set := utils.NewSet()
 	for _, tag := range strings.Split(strings.ToLower(strings.TrimSpace(ctx.String("tags"))), ",") {
 		set.Add(tag)
 	}
 	d.Tags = set.Entries()
 
-	return d, nil
+	return d
 }
 
-func NewNoteFromContext(ctx *cli.Context) (*Note, error) {
-	note := &Note{}
+func NewNoteDTOFromContext(ctx *cli.Context) (*NoteDTO, error) {
+	note := &NoteDTO{}
 
-	if inputContent, err := readContentFromContext(ctx); err != nil {
+	if inputContent, err := user_input.GetContentFromContext(ctx); err != nil {
 		return nil, err
 	} else if len(inputContent) == 0 {
 		return nil, errEmptyContent
@@ -72,7 +77,7 @@ func NewNoteFromContext(ctx *cli.Context) (*Note, error) {
 		note.Content = inputContent
 	}
 
-	note.Tags = ReadTagsFromContext(ctx)
+	note.Tags = user_input.GetTagsFromContext(ctx)
 
 	return note, nil
 }

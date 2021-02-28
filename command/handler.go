@@ -5,10 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ricanontherun/short-form/config"
+	"github.com/ricanontherun/short-form/dto"
 	"github.com/ricanontherun/short-form/logging"
-	"github.com/ricanontherun/short-form/models"
 	"github.com/ricanontherun/short-form/output"
 	"github.com/ricanontherun/short-form/repository"
+	"github.com/ricanontherun/short-form/user_input"
 	"github.com/urfave/cli/v2"
 	"log"
 	"os"
@@ -25,7 +26,6 @@ type handler struct {
 	repository      repository.Repository
 	nowSupplyingFn  nowSupplier
 	inputController UserInputController
-	printer         output.Printer
 }
 
 type HandlerBuilder struct {
@@ -66,8 +66,6 @@ func (builder *HandlerBuilder) Build() handler {
 		handler.inputController = NewUserInputController()
 	}
 
-	handler.printer = output.NewPrinter()
-
 	return handler
 }
 
@@ -75,14 +73,14 @@ func DefaultNowSupplier() time.Time {
 	return time.Now()
 }
 
-func (handler handler) WriteNote(input *Note) error {
-	if err := handler.repository.WriteNote(models.NewNote(input.Tags, input.Content)); err != nil {
+func (handler handler) WriteNote(input *NoteDTO) error {
+	if err := handler.repository.WriteNote(dto.NewNote(input.Tags, input.Content)); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (handler handler) writeNote(note models.Note) error {
+func (handler handler) writeNote(note dto.Note) error {
 	return handler.repository.WriteNote(note)
 }
 
@@ -92,13 +90,13 @@ func (handler handler) SearchToday(ctx *cli.Context) error {
 	if searchFilters, err := handler.getSearchFiltersFromContext(ctx); err != nil {
 		return err
 	} else {
-		dateRange := models.GetRangeToday(now)
+		dateRange := dto.GetRangeToday(now)
 		searchFilters.DateRange = &dateRange
 
 		if notes, err := handler.repository.SearchNotes(searchFilters); err != nil {
 			return err
 		} else {
-			handler.printer.PrintNotes(notes, getPrintOptionsFromContext(ctx))
+			output.PrintNotes(notes, getPrintOptionsFromContext(ctx))
 		}
 
 		return nil
@@ -109,13 +107,13 @@ func (handler handler) SearchYesterday(ctx *cli.Context) error {
 	if baseFilters, err := handler.getSearchFiltersFromContext(ctx); err != nil {
 		return err
 	} else {
-		dateRange := models.GetRangeYesterday(handler.nowSupplyingFn())
+		dateRange := dto.GetRangeYesterday(handler.nowSupplyingFn())
 		baseFilters.DateRange = &dateRange
 
 		if notes, err := handler.repository.SearchNotes(baseFilters); err != nil {
 			return err
 		} else {
-			handler.printer.PrintNotes(notes, getPrintOptionsFromContext(ctx))
+			output.PrintNotes(notes, getPrintOptionsFromContext(ctx))
 		}
 
 		return nil
@@ -129,86 +127,21 @@ func (handler handler) SearchNotes(ctx *cli.Context) error {
 		if notes, err := handler.repository.SearchNotes(searchFilters); err != nil {
 			return err
 		} else {
-			handler.printer.PrintNotes(notes, getPrintOptionsFromContext(ctx))
+			output.PrintNotes(notes, getPrintOptionsFromContext(ctx))
 		}
 
 		return nil
 	}
 }
 
-func (handler handler) DeleteNote(ctx *cli.Context) error {
-	// Check for delete by tagString scenario.
-	tagString := strings.ToLower(strings.TrimSpace(ctx.String("tags")))
-
-	if len(tagString) != 0 { // Delete by tagString
-		tags := strings.Split(tagString, ",")
-
-		if notes, err := handler.repository.SearchNotes(&models.SearchFilters{
-			Tags: tags,
-		}); err != nil {
-			return err
-		} else if len(notes) == 0 {
-			fmt.Printf("0 notes found with tags '%s'", tagString)
-			return nil
-		} else {
-			fmt.Println("The following notes will be deleted:")
-			handler.printer.PrintNotes(notes, output.Options{})
-
-			confirm := ""
-			notesLen := len(notes)
-			if len(notes) == 1 {
-				confirm = "delete 1 note?"
-			} else {
-				confirm = fmt.Sprintf("delete %d notes?", notesLen)
-			}
-
-			// TODO: Check for no confirm flag.
-			if handler.confirmAction(confirm) {
-				if _, exists := os.LookupEnv("SHORT_FORM_DRYRUN"); !exists {
-					for _, tag := range tags {
-						if deletedErr := handler.repository.DeleteNoteByTag(tag); deletedErr != nil {
-							return deletedErr
-						}
-					}
-
-					fmt.Println("ok")
-				} else {
-					fmt.Println("dry run, 0 notes deleted")
-				}
-
-				return nil
-			}
-		}
-
-		return nil
-	} else { // delete by id
-		noteId := strings.TrimSpace(ctx.Args().First())
-		noteIdLen := len(noteId)
-
-		if noteIdLen == 0 {
-			return errMissingNoteId
-		}
-
-		if !models.IsValidId(noteId) {
-			return errInvalidNoteId
-		}
-
-		if note, err := handler.findNoteById(noteId); err != nil {
-			return err
-		} else {
-			return handler.deleteNote(note, !ctx.Bool(flagNoConfirm))
-		}
-	}
-}
-
-func (handler handler) deleteNote(note *models.Note, confirm bool) error {
+func (handler handler) deleteNote(note *dto.Note, confirm bool) error {
 	logging.Debug("deleting note using full id " + note.ID)
 
 	if confirm {
 		fmt.Println("The following note will be deleted:")
 		fmt.Println()
 
-		handler.printer.PrintNote(note, output.Options{})
+		output.PrintNote(note, output.Options{})
 
 		if ok := handler.confirmAction("Proceed?"); !ok {
 			fmt.Println("canceled")
@@ -232,11 +165,11 @@ func (handler handler) EditNote(ctx *cli.Context) error {
 		return errMissingNoteId
 	}
 
-	if !models.IsValidId(noteId) {
+	if !dto.IsValidId(noteId) {
 		return errInvalidNoteId
 	}
 
-	var note *models.Note
+	var note *dto.Note
 	var err error
 	if note, err = handler.findNoteById(noteId); err != nil {
 		return err
@@ -276,7 +209,7 @@ func (handler handler) EditNote(ctx *cli.Context) error {
 	}
 
 	fmt.Println()
-	handler.printer.PrintNote(note, getPrintOptionsFromContext(ctx))
+	output.PrintNote(note, getPrintOptionsFromContext(ctx))
 
 	return nil
 }
@@ -300,7 +233,7 @@ func (handler handler) ConfigureDatabase(cli *cli.Context, conf config.Config) e
 }
 
 func (handler handler) StreamNotes(cli *cli.Context) error {
-	tags := ReadTagsFromContext(cli)
+	tags := user_input.GetTagsFromContext(cli)
 	input := ""
 	reader := bufio.NewReader(os.Stdin)
 
@@ -315,7 +248,7 @@ func (handler handler) StreamNotes(cli *cli.Context) error {
 			break
 		}
 
-		note := models.NewNote(tags, trimmedInput)
+		note := dto.NewNote(tags, trimmedInput)
 		if err := handler.repository.WriteNote(note); err != nil {
 			log.Println("failed to save note: " + err.Error())
 		}
@@ -325,11 +258,11 @@ func (handler handler) StreamNotes(cli *cli.Context) error {
 }
 
 // Attempt to find a note by it's ID, automatically resolving short vs long IDs.
-func (handler *handler) findNoteById(noteId string) (*models.Note, error) {
-	var note *models.Note
+func (handler *handler) findNoteById(noteId string) (*dto.Note, error) {
+	var note *dto.Note
 	var noteIdLen = len(noteId)
 
-	if noteIdLen == models.ShortIDLength {
+	if noteIdLen == dto.ShortIDLength {
 		if notes, err := handler.repository.LookupNotesByShortId(noteId); err != nil {
 			return nil, err
 		} else {
@@ -347,7 +280,7 @@ func (handler *handler) findNoteById(noteId string) (*models.Note, error) {
 				printOptions.Search = struct {
 					PrintSummary bool
 				}{PrintSummary: false}
-				handler.printer.PrintNotes(notes, printOptions)
+				output.PrintNotes(notes, printOptions)
 				return nil, errShortIdCollision
 			}
 		}
@@ -362,14 +295,14 @@ func (handler *handler) findNoteById(noteId string) (*models.Note, error) {
 	return note, nil
 }
 
-func (handler handler) getSearchFiltersFromContext(ctx *cli.Context) (*models.SearchFilters, error) {
-	searchFilters := &models.SearchFilters{
-		Tags:    ReadTagsFromContext(ctx),
-		Content: strings.TrimSpace(ctx.String(flagContent)),
+func (handler handler) getSearchFiltersFromContext(ctx *cli.Context) (*dto.SearchFilters, error) {
+	searchFilters := &dto.SearchFilters{
+		Tags:    user_input.GetTagsFromContext(ctx),
+		Content: strings.TrimSpace(ctx.String("")),
 		String:  strings.TrimSpace(strings.Join(ctx.Args().Slice(), " ")),
 	}
 
-	age := strings.ToLower(ctx.String(flagAge))
+	age := strings.ToLower(ctx.String(""))
 	if len(age) > 0 {
 		validAge := regexp.MustCompile(`^\d+d$`)
 		if !validAge.MatchString(age) {
@@ -379,7 +312,7 @@ func (handler handler) getSearchFiltersFromContext(ctx *cli.Context) (*models.Se
 			end := handler.nowSupplyingFn()
 			start := end.AddDate(0, 0, -ageDays)
 
-			searchFilters.DateRange = &models.DateRange{
+			searchFilters.DateRange = &dto.DateRange{
 				From: start,
 				To:   end,
 			}

@@ -86,3 +86,9 @@ FROM notes
 WHERE id LIKE ? || '%'
 ORDER BY timestamp DESC
 `
+
+const sqlCountNotesByTag = `
+SELECT COUNT(distinct note_id) as note_count
+FROM note_tags
+WHERE tag IN (%s)
+`

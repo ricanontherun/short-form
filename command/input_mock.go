@@ -2,7 +2,7 @@ package command
 
 import "github.com/stretchr/testify/mock"
 
-// Create a mock user input controller to be dependency injected into
+// Create a mock user dto controller to be dependency injected into
 // handler for both delete and edit note flows.
 type mockInput struct {
 	mock.Mock

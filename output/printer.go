@@ -3,22 +3,17 @@ package output
 import (
 	"fmt"
 	"github.com/fatih/color"
-	"github.com/ricanontherun/short-form/models"
+	"github.com/ricanontherun/short-form/dto"
 	"strings"
 )
 
 type Printer interface {
-	PrintNotes([]*models.Note, Options)
-	PrintNote(*models.Note, Options)
+	PrintNotes([]*dto.Note, Options)
+	PrintNote(*dto.Note, Options)
+	PrintNoteSummary([]*dto.Note)
 }
 
-type printer struct{}
-
-func NewPrinter() Printer {
-	return printer{}
-}
-
-func (printer printer) PrintNotes(notes []*models.Note, options Options) {
+func PrintNotes(notes []*dto.Note, options Options) {
 	noteCount := len(notes)
 
 	if options.Search.PrintSummary {
@@ -34,11 +29,11 @@ func (printer printer) PrintNotes(notes []*models.Note, options Options) {
 	}
 
 	for _, note := range notes {
-		printer.PrintNote(note, options)
+		PrintNote(note, options)
 	}
 }
 
-func (printer printer) PrintNote(note *models.Note, options Options) {
+func PrintNote(note *dto.Note, options Options) {
 	lineParts := make([]string, 0, 4)
 	lineParts = append(lineParts, color.MagentaString(note.Timestamp.Format("Jan 02 2006 03:04 PM")))
 
@@ -97,4 +92,14 @@ func (printer printer) PrintNote(note *models.Note, options Options) {
 
 	fmt.Println(contentString)
 	fmt.Println()
+}
+
+func PrintNoteSummary(notes []*dto.Note) {
+	printOptions := NewOptions()
+	printOptions.FullID = true
+	printOptions.Search = struct {
+		PrintSummary bool
+	}{PrintSummary: false}
+
+	PrintNotes(notes, printOptions)
 }

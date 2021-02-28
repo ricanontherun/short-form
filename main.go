@@ -6,8 +6,12 @@ import (
 	"github.com/ricanontherun/short-form/command"
 	"github.com/ricanontherun/short-form/config"
 	"github.com/ricanontherun/short-form/database"
+	"github.com/ricanontherun/short-form/dto"
 	"github.com/ricanontherun/short-form/logging"
+	"github.com/ricanontherun/short-form/output"
+	"github.com/ricanontherun/short-form/query"
 	"github.com/ricanontherun/short-form/repository"
+	"github.com/ricanontherun/short-form/user_input"
 	"github.com/urfave/cli/v2"
 	"log"
 	"os"
@@ -110,7 +114,7 @@ func main() {
 			inlineDatabasePath := context.String("database-path")
 			if len(inlineDatabasePath) != 0 {
 				database.InitializeDatabaseSingleton(inlineDatabasePath)
-				repo :=  repository.NewSqlRepository(database.GetInstance())
+				repo := repository.NewSqlRepository(database.GetInstance())
 				logging.Debug(fmt.Sprintf("--database-path provided, overriding with %s", inlineDatabasePath))
 				handler = command.NewHandlerBuilder(repo).Build()
 			}
@@ -127,37 +131,70 @@ func main() {
 					confirmFlag,
 				},
 				Action: func(context *cli.Context) error {
-					note, err := command.NewNoteFromContext(context)
-					if err != nil {
-						return err
-					}
-
-					writeCommand := command.NewWriteCommand(note)
-
-					if err := writeCommand.Execute(); err != nil {
+					if note, err := command.NewNoteDTOFromContext(context); err != nil {
 						return err
 					} else {
-						fmt.Println("note saved")
-						return nil
+						writeErr := command.NewWriteCommand(note).Execute()
+						if writeErr == nil {
+							fmt.Println("note saved")
+						}
+						return writeErr
 					}
 				},
 			},
 			{
 				Name:    "delete",
 				Aliases: []string{"d"},
-				Usage:   "Delete a note",
 				Flags:   []cli.Flag{tagsFlag},
 				Action: func(ctx *cli.Context) error {
-					if dto, err := command.NewDeleteFromContext(ctx); err != nil {
-						return err
-					} else {
-						deleteCommand := command.NewDeleteCommand(dto)
-						if err := deleteCommand.Execute(); err != nil {
+					noteId := user_input.GetNoteIdFromContext(ctx)
+
+					if len(noteId) != 0 {
+						logging.Debug("deleting by note ID: " + noteId)
+						return deleteByNoteId(noteId)
+					} else { // try deleting by tag
+						tags := user_input.GetTagsFromContext(ctx)
+						if len(tags) == 0 {
+							logging.Debug("no tags present in input")
+							return cli.ShowAppHelp(ctx)
+						}
+
+						// Fetch the number of notes which would be effected by this action.
+						// Force the user to confirm.
+						if numNotes, err := query.NewTagsCountQuery(tags).Run(); err != nil {
 							return err
 						} else {
-							fmt.Println("note(s) deleted")
-							return nil
+							numNotesInt := numNotes.(uint64)
+							logging.Debug(fmt.Sprintf("found %d notes", numNotesInt))
+
+							switch numNotesInt {
+							case 0:
+								fmt.Println("no notes found")
+								return nil
+							default:
+								// prompt the user to make a decision.
+								message := ""
+								if numNotesInt == 1 {
+									message = "1 note found, continue?"
+								} else {
+									message = fmt.Sprintf("%d notes found, continue?", numNotesInt)
+								}
+
+								inputController := command.NewUserInputController()
+								if inputController.ConfirmAction(message) {
+									logging.Debug("deleting by tags")
+									if deleteErr := command.NewDeleteByTagsCommand(tags).Execute(); deleteErr != nil {
+										return nil
+									} else {
+										fmt.Println("note(s) deleted")
+									}
+								} else {
+									logging.Debug("delete by tag denied")
+								}
+							}
 						}
+
+						return nil
 					}
 				},
 			},
@@ -256,4 +293,30 @@ func main() {
 	if err := app.Run(os.Args); err != nil {
 		dd(err.Error())
 	}
+}
+
+func deleteByNoteId(noteId string) error {
+	if !dto.IsValidId(noteId) {
+		return fmt.Errorf("'%s' is not a valid note ID", noteId)
+	} else { // try perform a delete by note ID command.
+		deleteByNoteIdErr := command.NewDeleteCommand(&command.DeleteByNoteID{NoteID: noteId}).Execute()
+		if deleteByNoteIdErr == nil {
+			fmt.Println("note(s) deleted")
+			return nil
+		} else {
+			switch deleteByNoteIdErr.(type) {
+			case *command.NoteCollisionError:
+				// Short ID collision.
+				// Display relevant notes and force user to delete by full UUID.
+				output.PrintNoteSummary(deleteByNoteIdErr.(*command.NoteCollisionError).GetNotes())
+			}
+
+			return deleteByNoteIdErr
+		}
+	}
+}
+
+func deleteByTags(tags []string) error {
+	// A SearchByTagsQuery would be useful here.
+	return nil
 }

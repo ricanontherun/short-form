@@ -8,6 +8,8 @@ type Set interface {
 	Has(elem string) bool
 	// Return a slice of all set entries
 	Entries() []string
+	// Number of entries in the set.
+	Len() int
 }
 
 type setInternal struct {
@@ -35,8 +37,12 @@ func (set setInternal) Has(elem string) bool {
 	return exists
 }
 
+func (set setInternal) Len() int {
+	return len(set.entries)
+}
+
 func NewSet() Set {
 	return setInternal{
-		entries: make(map[string]bool),
+		entries: make(map[string]bool, 0),
 	}
 }

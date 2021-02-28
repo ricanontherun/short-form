@@ -3,6 +3,7 @@ package command
 import (
 	"fmt"
 	"github.com/ricanontherun/short-form/output"
+	"github.com/ricanontherun/short-form/user_input"
 	"github.com/ricanontherun/short-form/utils"
 	"github.com/urfave/cli/v2"
 	"strings"
@@ -21,15 +22,15 @@ func getPrintOptionsFromContext(ctx *cli.Context) output.Options {
 		print_options.SearchContent = searchString
 		print_options.SearchTags = []string{searchString}
 	} else {
-		print_options.SearchContent = ctx.String(flagContent)
-		print_options.SearchTags = ReadTagsFromContext(ctx)
+		print_options.SearchContent = ctx.String("content")
+		print_options.SearchTags = user_input.GetTagsFromContext(ctx)
 	}
 
 	return print_options
 }
 
-// Prompt the user for input.
-// Returns the trimmed, lowercase input.
+// Prompt the user for dto.
+// Returns the trimmed, lowercase dto.
 func (handler handler) promptUser(message string) string {
 	fmt.Print(message)
 	return strings.TrimSpace(strings.ToLower(handler.inputController.GetString()))

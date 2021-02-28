@@ -50,7 +50,7 @@ func queryOne(query string, scans ...interface{}) error {
 }
 
 func TestWriteCommand_Execute(t *testing.T) {
-	writeCommand := NewWriteCommand(&Note{
+	writeCommand := NewWriteCommand(&NoteDTO{
 		Content: "ok",
 		Tags: []string{"tag1", "tag2"},
 	})

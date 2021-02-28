@@ -1,8 +1,13 @@
-package models
+package query
 
-import (
-	"time"
-)
+import "time"
+
+type SearchFilters struct {
+	DateRange *DateRange
+	Tags      []string
+	Content   string
+	String    string
+}
 
 type DateRange struct {
 	From time.Time

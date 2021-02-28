@@ -1,4 +1,4 @@
-package models
+package dto
 
 import uuid "github.com/satori/go.uuid"
 
@@ -21,6 +21,3 @@ func IsValidId(id string) bool {
 	return true
 }
 
-func NewId() string {
-	return uuid.NewV4().String()
-}

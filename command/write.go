@@ -2,21 +2,19 @@ package command
 
 import (
 	"github.com/ricanontherun/short-form/database"
-	"github.com/ricanontherun/short-form/models"
+	"github.com/ricanontherun/short-form/dto"
 	"github.com/ricanontherun/short-form/repository"
 )
 
 type writeCommand struct {
-	input *Note
+	dto *NoteDTO
 }
 
 func (command *writeCommand) Execute() error {
 	repo := repository.NewSqlRepository(database.GetInstance())
-	return repo.WriteNote(models.NewNote(command.input.Tags, command.input.Content))
+	return repo.WriteNote(dto.NewNote(command.dto.Tags, command.dto.Content))
 }
 
-func NewWriteCommand(data *Note) Command {
-	return &writeCommand{
-		data,
-	}
+func NewWriteCommand(dto *NoteDTO) Command {
+	return &writeCommand{dto,}
 }

@@ -11,9 +11,3 @@ var (
 	errInvalidAge       = errors.New("invalid age")
 )
 
-const (
-	flagTags      = "tags"
-	flagAge       = "age"
-	flagContent   = "content"
-	flagNoConfirm = "no-confirm"
-)

@@ -1,4 +1,4 @@
-package models
+package dto
 
 import (
 	uuid "github.com/satori/go.uuid"
