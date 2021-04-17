@@ -8,10 +8,11 @@ import (
 
 func GetTagsFromContext(ctx *cli.Context) []string {
 	set := utils.NewSet()
+
 	for _, tag := range strings.Split(strings.ToLower(strings.TrimSpace(ctx.String("tags"))), ",") {
 		trimmedTag := strings.TrimSpace(tag)
 		if len(trimmedTag) > 0 {
-			set.Add(tag)
+			set.Add(trimmedTag)
 		}
 	}
 	return set.Entries()

@@ -7,6 +7,33 @@ import (
 	"testing"
 )
 
+
+func cleanTestDir(dir string) error {
+	removeErr := os.RemoveAll(dir)
+	if removeErr != nil {
+		return fmt.Errorf("failed to delete %s, %s", dir, removeErr.Error())
+	}
+
+	mkdirErr := os.Mkdir(dir, os.ModePerm)
+	if mkdirErr != nil {
+		return fmt.Errorf("failed to recreate %s, %s", dir, mkdirErr.Error())
+	}
+
+	return nil
+}
+
+
+func removeFileIfExists(path string) {
+	_, statErr := os.Stat(path)
+	if statErr != nil || os.IsNotExist(statErr) {
+		return
+	}
+
+	if removeErr := os.Remove(path); removeErr != nil {
+		panic(removeErr)
+	}
+}
+
 func TestEnsureFilePath_ExistingFile(t *testing.T) {
 	path := "./fs_test.go"
 	exists, err := EnsureFilePath(path)
@@ -51,16 +78,16 @@ func TestEnsureFilePath_NoDirectory(t *testing.T) {
 }
 
 func TestMain(m *testing.M) {
-	RemoveFileIfExists("./test.db")
-	if err := CleanTestDir("./test_data"); err != nil {
+	removeFileIfExists("./test.db")
+	if err := cleanTestDir("./test_data"); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 
 	code := m.Run()
 
-	RemoveFileIfExists("./test.db")
-	if err := CleanTestDir("./test_data"); err != nil {
+	removeFileIfExists("./test.db")
+	if err := cleanTestDir("./test_data"); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}

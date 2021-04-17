@@ -1,6 +1,7 @@
 package command
 
 import (
+	testing2 "github.com/ricanontherun/short-form/test_utils"
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -13,4 +14,18 @@ func Test_IsValidNoteId(t *testing.T) {
 
 	assert.False(t, isValidNoteId(""))
 	assert.False(t, isValidNoteId(testUUID[:9]))
+}
+
+func Test_NewNoteDTOFromContext(t *testing.T) {
+	ctx := testing2.CreateAppContext(map[string]string{
+		"tags": " one,two ",
+	}, []string{"this", "is the", "content"})
+
+	note, err := NewNoteDTOFromContext(ctx)
+
+	assert.Nil(t, err)
+	assert.NotNil(t, note)
+
+	assert.Equal(t,[]string{"one", "two"}, note.Tags)
+	assert.Equal(t, "this is the content", note.Content)
 }

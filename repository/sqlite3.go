@@ -20,7 +20,7 @@ type sqlRepository struct {
 }
 
 // Delete all the notes under a tag
-func (repository sqlRepository) DeleteNoteByTags(tags []string) error {
+func (repository *sqlRepository) DeleteNoteByTags(tags []string) error {
 	return repository.transaction(func(tx *sql.Tx) error {
 		for _, tag := range tags {
 			deleteNoteStatement, err := tx.Prepare(sqlDeleteNotesByTag)
@@ -49,7 +49,7 @@ func (repository sqlRepository) DeleteNoteByTags(tags []string) error {
 }
 
 func NewSqlRepository(db database.Database) Repository {
-	return sqlRepository{db}
+	return &sqlRepository{db}
 }
 
 func buildSearchQueryFromFilters(searchFilters *dto.SearchFilters) string {
@@ -111,7 +111,7 @@ func makeInsertValuesForTags(noteId string, tags []string) string {
 	return strings.Join(inserts, ",")
 }
 
-func (repository sqlRepository) WriteNote(note dto.Note) error {
+func (repository *sqlRepository) WriteNote(note dto.Note) error {
 	return repository.transaction(func(tx *sql.Tx) error {
 		if err := repository.writeNote(tx, note); err != nil {
 			return err
@@ -127,7 +127,7 @@ func (repository sqlRepository) WriteNote(note dto.Note) error {
 	})
 }
 
-func (repository sqlRepository) writeNote(tx *sql.Tx, note dto.Note) error {
+func (repository *sqlRepository) writeNote(tx *sql.Tx, note dto.Note) error {
 	noteInsertStatement, err := tx.Prepare(sqlInsertNote)
 	if err != nil {
 		return err
@@ -141,7 +141,7 @@ func (repository sqlRepository) writeNote(tx *sql.Tx, note dto.Note) error {
 	return nil
 }
 
-func (repository sqlRepository) TagNote(note dto.Note, tags []string) error {
+func (repository *sqlRepository) TagNote(note dto.Note, tags []string) error {
 	return repository.transaction(func(tx *sql.Tx) error {
 		if err := repository.deleteNoteTags(tx, note.ID); err != nil {
 			return err
@@ -155,7 +155,7 @@ func (repository sqlRepository) TagNote(note dto.Note, tags []string) error {
 	})
 }
 
-func (repository sqlRepository) writeNoteTags(tx *sql.Tx, noteId string, tags []string) error {
+func (repository *sqlRepository) writeNoteTags(tx *sql.Tx, noteId string, tags []string) error {
 	sqlString := sqlInsertNoteTags + " " + makeInsertValuesForTags(noteId, tags)
 	tagInsertPreparedStatement, err := tx.Prepare(sqlString)
 
@@ -171,7 +171,7 @@ func (repository sqlRepository) writeNoteTags(tx *sql.Tx, noteId string, tags []
 	return nil
 }
 
-func (repository sqlRepository) transaction(callback func(*sql.Tx) error) error {
+func (repository *sqlRepository) transaction(callback func(*sql.Tx) error) error {
 	if transaction, err := repository.db.GetConnection().Begin(); err != nil {
 		return err
 	} else {
@@ -185,7 +185,7 @@ func (repository sqlRepository) transaction(callback func(*sql.Tx) error) error 
 	}
 }
 
-func (repository sqlRepository) SearchNotes(ctx *dto.SearchFilters) ([]*dto.Note, error) {
+func (repository *sqlRepository) SearchNotes(ctx *dto.SearchFilters) ([]*dto.Note, error) {
 	stmt, err := repository.db.GetConnection().Prepare(buildSearchQueryFromFilters(ctx))
 	if err != nil {
 		return nil, err
@@ -220,7 +220,7 @@ func (repository sqlRepository) SearchNotes(ctx *dto.SearchFilters) ([]*dto.Note
 	return notes, nil
 }
 
-func (repository sqlRepository) getNoteTags(noteId string) ([]string, error) {
+func (repository *sqlRepository) getNoteTags(noteId string) ([]string, error) {
 	if stmt, err := repository.db.GetConnection().Prepare(sqlGetNoteTags); err != nil {
 		return nil, err
 	} else {
@@ -235,7 +235,7 @@ func (repository sqlRepository) getNoteTags(noteId string) ([]string, error) {
 	}
 }
 
-func (repository sqlRepository) DeleteNote(noteId string) error {
+func (repository *sqlRepository) DeleteNote(noteId string) error {
 	return repository.transaction(func(tx *sql.Tx) error {
 		stmt, err := tx.Prepare(sqlDeleteNote)
 		if err != nil {
@@ -260,7 +260,7 @@ func (repository sqlRepository) DeleteNote(noteId string) error {
 	})
 }
 
-func (repository sqlRepository) deleteNoteTags(tx *sql.Tx, noteId string) error {
+func (repository *sqlRepository) deleteNoteTags(tx *sql.Tx, noteId string) error {
 	if stmt, err := tx.Prepare(sqlDeleteNoteTags); err != nil {
 		return err
 	} else {
@@ -274,7 +274,7 @@ func (repository sqlRepository) deleteNoteTags(tx *sql.Tx, noteId string) error 
 }
 
 // Update a note's content
-func (repository sqlRepository) UpdateNoteContent(noteId string, content string) error {
+func (repository *sqlRepository) UpdateNoteContent(noteId string, content string) error {
 	if stmt, err := repository.db.GetConnection().Prepare(sqlUpdateNote); err != nil {
 		return err
 	} else {
@@ -291,15 +291,15 @@ func (repository sqlRepository) UpdateNoteContent(noteId string, content string)
 }
 
 // Get a single note from the database.
-func (repository sqlRepository) LookupNote(noteId string) (*dto.Note, error) {
+func (repository *sqlRepository) LookupNote(noteId string) (*dto.Note, error) {
 	return repository.getNote(noteId, false)
 }
 
-func (repository sqlRepository) LookupNoteWithTags(noteId string) (*dto.Note, error) {
+func (repository *sqlRepository) LookupNoteWithTags(noteId string) (*dto.Note, error) {
 	return repository.getNote(noteId, true)
 }
 
-func (repository sqlRepository) getNote(noteId string, withTags bool) (*dto.Note, error) {
+func (repository *sqlRepository) getNote(noteId string, withTags bool) (*dto.Note, error) {
 	if stmt, err := repository.db.GetConnection().Prepare(sqlGetNote); err != nil {
 		return nil, err
 	} else {
@@ -327,7 +327,7 @@ func (repository sqlRepository) getNote(noteId string, withTags bool) (*dto.Note
 	}
 }
 
-func (repository sqlRepository) UpdateNote(note dto.Note) error {
+func (repository *sqlRepository) UpdateNote(note dto.Note) error {
 	if stmt, err := repository.db.GetConnection().Prepare(sqlUpdateNoteContent); err != nil {
 		return err
 	} else {
@@ -344,7 +344,7 @@ func (repository sqlRepository) UpdateNote(note dto.Note) error {
 	return nil
 }
 
-func (repository sqlRepository) LookupNotesByShortId(shortId string) ([]*dto.Note, error) {
+func (repository *sqlRepository) LookupNotesByShortId(shortId string) ([]*dto.Note, error) {
 	if stmt, err := repository.db.GetConnection().Prepare(sqlSearchByShortId); err != nil {
 		return nil, err
 	} else {
@@ -375,7 +375,7 @@ func (repository sqlRepository) LookupNotesByShortId(shortId string) ([]*dto.Not
 	}
 }
 
-func (repository sqlRepository) GetNoteCountByTags(tags []string) (uint64, error) {
+func (repository *sqlRepository) GetNoteCountByTags(tags []string) (uint64, error) {
 	// TODO: This sucks. There HAS to be a way to construct a parameterized WHERE IN.
 	// Complete the SQL querystring.
 	preparedTags := make([]string, len(tags))
@@ -406,7 +406,7 @@ func (repository sqlRepository) GetNoteCountByTags(tags []string) (uint64, error
 }
 
 // Initialize the database structure.
-func (repository sqlRepository) initialize(db *sql.DB) error {
+func (repository *sqlRepository) initialize(db *sql.DB) error {
 	if _, err := db.Exec(SQLInitializeDatabase); err != nil {
 		return err
 	}

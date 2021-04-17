@@ -107,13 +107,13 @@ func TestHandler_SearchToday(t *testing.T) {
 		expectedDateRange dto.DateRange
 	}{
 		// No dto
-		{
-			inputContent:      "",
-			inputTags:         "",
-			expectedTags:      []string{},
-			expectedContent:   "",
-			expectedDateRange: dto.GetRangeToday(now),
-		},
+		//{
+		//	inputContent:      "",
+		//	inputTags:         "",
+		//	expectedTags:      []string{},
+		//	expectedContent:   "",
+		//	expectedDateRange: dto.GetRangeToday(now),
+		//},
 
 		// Intentionally space padded dto
 		{

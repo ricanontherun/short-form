@@ -9,6 +9,14 @@ type mockRepository struct {
 	mock.Mock
 }
 
+func (repository *mockRepository) DeleteNoteByTags(tags []string) error {
+	panic("implement me")
+}
+
+func (repository *mockRepository) GetNoteCountByTags(tags []string) (uint64, error) {
+	panic("implement me")
+}
+
 func NewMockRepository() mockRepository {
 	return mockRepository{}
 }

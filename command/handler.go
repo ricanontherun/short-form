@@ -298,7 +298,7 @@ func (handler *handler) findNoteById(noteId string) (*dto.Note, error) {
 func (handler handler) getSearchFiltersFromContext(ctx *cli.Context) (*dto.SearchFilters, error) {
 	searchFilters := &dto.SearchFilters{
 		Tags:    user_input.GetTagsFromContext(ctx),
-		Content: strings.TrimSpace(ctx.String("")),
+		Content: strings.TrimSpace(ctx.String("content")),
 		String:  strings.TrimSpace(strings.Join(ctx.Args().Slice(), " ")),
 	}
 

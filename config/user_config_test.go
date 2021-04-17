@@ -3,13 +3,26 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/ricanontherun/short-form/utils"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"os"
 	"path"
 	"testing"
 )
+
+func cleanTestDir(dir string) error {
+	removeErr := os.RemoveAll(dir)
+	if removeErr != nil {
+		return fmt.Errorf("failed to delete %s, %s", dir, removeErr.Error())
+	}
+
+	mkdirErr := os.Mkdir(dir, os.ModePerm)
+	if mkdirErr != nil {
+		return fmt.Errorf("failed to recreate %s, %s", dir, mkdirErr.Error())
+	}
+
+	return nil
+}
 
 const (
 	basePath    = "./test_data"
@@ -57,12 +70,12 @@ func TestReadUserConfig_UpdateConfig(t *testing.T) {
 }
 
 func TestMain(m *testing.M) {
-	if err := utils.CleanTestDir(baseTmpPath); err != nil {
+	if err := cleanTestDir(baseTmpPath); err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
 	code := m.Run()
-	if err := utils.CleanTestDir(baseTmpPath); err != nil {
+	if err := cleanTestDir(baseTmpPath); err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
