@@ -9,6 +9,7 @@ var (
 	errNoteNotFound     = errors.New("note not found")
 	errShortIdCollision = errors.New("duplicate short id")
 	errInvalidAge       = errors.New("invalid age")
+	errMissingTitle 	= errors.New("missing title")
 )
 
 const (

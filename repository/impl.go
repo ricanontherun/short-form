@@ -139,7 +139,7 @@ func (repository sqlRepository) writeNote(tx *sql.Tx, note models.Note) error {
 	}
 	defer noteInsertStatement.Close()
 
-	if _, err = noteInsertStatement.Exec(note.ID, note.Timestamp, note.Content); err != nil {
+	if _, err = noteInsertStatement.Exec(note.ID, note.Timestamp, note.Title, note.Content); err != nil {
 		return err
 	}
 
@@ -209,7 +209,7 @@ func (repository sqlRepository) SearchNotes(ctx *models.SearchFilters) ([]*model
 		var note models.Note
 		var tagString string
 
-		if err := rs.Scan(&note.ID, &note.Content, &tagString, &note.Timestamp); err != nil {
+		if err := rs.Scan(&note.ID, &note.Title, &note.Content, &tagString, &note.Timestamp); err != nil {
 			return nil, err
 		}
 

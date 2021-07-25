@@ -3,6 +3,7 @@ package command
 import (
 	"bufio"
 	"fmt"
+	"github.com/ricanontherun/short-form/logging"
 	"github.com/ricanontherun/short-form/output"
 	"github.com/ricanontherun/short-form/utils"
 	"github.com/urfave/cli/v2"
@@ -12,6 +13,7 @@ import (
 )
 
 type parsedInput struct {
+	title   string
 	content string
 	tags    []string
 }
@@ -47,18 +49,27 @@ func (handler handler) confirmAction(message string) bool {
 	})
 }
 
-func getContentFromInput(ctx *cli.Context) (*parsedInput, error) {
+func (handler handler) getContentFromInput(ctx *cli.Context) (*parsedInput, error) {
 	stdinStat, err := os.Stdin.Stat()
 	if err != nil {
 		return nil, err
 	}
 
 	var content string
+	var title string
 
+	// Command args form the title.
 	args := ctx.Args().Slice()
 	if len(args) != 0 {
-		content = strings.Join(args, " ")
-	} else if stdinStat.Mode()&os.ModeCharDevice != 0 || stdinStat.Size() != 0 {
+		title = strings.Join(args, " ")
+	} else { // Each note requires a title.
+		return nil, errMissingTitle
+	}
+
+	logging.Debug(fmt.Sprintf("title=%s", title))
+
+	if stdinStat.Size() != 0 {
+		logging.Debug("reading content from stdin")
 		stdinReader := bufio.NewReader(os.Stdin)
 		var stdinBuilder strings.Builder
 
@@ -69,18 +80,19 @@ func getContentFromInput(ctx *cli.Context) (*parsedInput, error) {
 				if readErr != nil { // unexpected (non EOF) error.
 					panic(readErr)
 				}
-
 				stdinBuilder.WriteRune(r)
 			}
 		}
 
 		content = strings.TrimSuffix(stdinBuilder.String(), "\n")
+	} else { // Prompt the user for input.
+		logging.Debug("prompting user for input")
+		content = handler.inputController.GetString()
 	}
 
-	return &parsedInput{
-		content: content,
-		tags:    getTagsFromContext(ctx),
-	}, nil
+	tags := getTagsFromContext(ctx)
+	logging.Debug(fmt.Sprintf("title=%s, content=%s, tags=%v+", title, content, tags))
+	return &parsedInput{title, content, tags}, nil
 }
 
 // Return a cleaned array of tags provided as --tags=t1,t2,t3, as ['t1', 't2', 't3']

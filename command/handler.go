@@ -76,7 +76,7 @@ func DefaultNowSupplier() time.Time {
 }
 
 func (handler handler) WriteNote(ctx *cli.Context) error {
-	input, err := getContentFromInput(ctx)
+	input, err := handler.getContentFromInput(ctx)
 
 	if err != nil {
 		return err
@@ -86,7 +86,7 @@ func (handler handler) WriteNote(ctx *cli.Context) error {
 		return errEmptyContent
 	}
 
-	if err := handler.repository.WriteNote(models.NewNote(input.tags, input.content)); err != nil {
+	if err := handler.repository.WriteNote(models.NewNote(input.title, input.content, input.tags)); err != nil {
 		return err
 	}
 
@@ -326,7 +326,8 @@ func (handler handler) StreamNotes(cli *cli.Context) error {
 			break
 		}
 
-		note := models.NewNote(tags, trimmedInput)
+		// TODO: How will titles be supported in stream commands?
+		note := models.NewNote("", trimmedInput, tags)
 		if err := handler.repository.WriteNote(note); err != nil {
 			log.Println("failed to save note: " + err.Error())
 		}

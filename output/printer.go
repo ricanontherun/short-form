@@ -39,6 +39,7 @@ func (printer printer) PrintNotes(notes []*models.Note, options Options) {
 }
 
 func (printer printer) PrintNote(note *models.Note, options Options) {
+	// The first line of output is in the format <timestamp> - <note-id> - <title>
 	lineParts := make([]string, 0, 4)
 	lineParts = append(lineParts, color.MagentaString(note.Timestamp.Format("Jan 02 2006 03:04 PM")))
 
@@ -50,6 +51,22 @@ func (printer printer) PrintNote(note *models.Note, options Options) {
 	noteId = color.CyanString(noteId)
 	lineParts = append(lineParts, noteId)
 
+	lineParts = append(lineParts, note.Title)
+
+	// Print the top line.
+	fmt.Println(strings.Join(lineParts, " - "))
+
+	contentString := note.Content
+	if options.SearchContent != "" {
+		printer := color.New(color.Bold, color.Underline)
+		printer.Add(color.FgYellow)
+		contentString = highlightNeedle(note.Content, options.SearchContent, printer)
+	}
+
+	// Print the note content.
+	fmt.Println("\n" + contentString)
+
+	// Print the tags.
 	if len(note.Tags) > 0 {
 		// Bold and underline any matching tags.
 		tagsString := ""
@@ -77,19 +94,10 @@ func (printer printer) PrintNote(note *models.Note, options Options) {
 		}
 
 		if len(tagsString) != 0 {
-			lineParts = append(lineParts, tagsString)
+			fmt.Println()
+			fmt.Println(tagsString)
 		}
 	}
 
-	fmt.Println(strings.Join(lineParts, " - "))
-
-	contentString := note.Content
-	if options.SearchContent != "" {
-		printer := color.New(color.Bold, color.Underline)
-		printer.Add(color.FgYellow)
-		contentString = highlightNeedle(note.Content, options.SearchContent, printer)
-	}
-
-	fmt.Println(contentString)
 	fmt.Println()
 }

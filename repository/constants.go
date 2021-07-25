@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS notes
 		constraint notes_pk
 			primary key,
 	timestamp TIMESTAMP not null,
-	content TEXT not null
+	title TEXT not null,
+	content TEXT
 );
 
 CREATE INDEX IF NOT EXISTS notes_content_index ON notes (content);
@@ -32,14 +33,14 @@ CREATE INDEX IF NOT EXISTS note_tags_tag_index ON note_tags (tag);
 `
 
 const sqlInsertNote = `
-INSERT INTO notes (id, timestamp, content)
-VALUES (?, ?, ?)
+INSERT INTO notes (id, timestamp, title, content)
+VALUES (?, ?, ?, ?)
 `
 
 const sqlInsertNoteTags = `INSERT INTO note_tags (note_id, tag) VALUES`
 
 const sqlSearchNotes = `
-SELECT notes.id, notes.content, COALESCE(GROUP_CONCAT(DISTINCT note_tags.tag), "") as tags, notes.timestamp
+SELECT notes.id, notes.title, notes.content, COALESCE(GROUP_CONCAT(DISTINCT note_tags.tag), "") as tags, notes.timestamp
 FROM notes
 LEFT JOIN note_tags
     ON note_tags.note_id = notes.id
