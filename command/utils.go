@@ -87,7 +87,7 @@ func (handler handler) getContentFromInput(ctx *cli.Context) (*parsedInput, erro
 		content = strings.TrimSuffix(stdinBuilder.String(), "\n")
 	} else { // Prompt the user for input.
 		logging.Debug("prompting user for input")
-		content = handler.inputController.GetString()
+		content = handler.inputController.GetContentFromUserInput()
 	}
 
 	tags := getTagsFromContext(ctx)

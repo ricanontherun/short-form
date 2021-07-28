@@ -388,5 +388,7 @@ func (repository sqlRepository) initialize(db *sql.DB) error {
 		return err
 	}
 
+	// Check for db version table, make any necessary migrations.
+
 	return nil
 }
